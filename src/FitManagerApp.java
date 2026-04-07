@@ -1,6 +1,5 @@
+import ui.menus.main.MainMenu;
 import ui.screen.UserInterface;
-
-import javax.swing.*;
 
 public class FitManagerApp {
 
@@ -8,12 +7,9 @@ public class FitManagerApp {
 
         // Instancia os componentes principais
         UserInterface ui = new UserInterface();
+        MainMenu mainMenu = new MainMenu(ui);
 
-        JOptionPane.showInputDialog(
-                null,
-                "Escolha uma opção:",
-                "Tela incial",
-                JOptionPane.QUESTION_MESSAGE
-        );
+        // Inicia o sistema
+        mainMenu.start();
     }
 }

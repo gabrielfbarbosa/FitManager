@@ -29,7 +29,7 @@ public class UserInterface {
         return JOptionPane.showInputDialog(
                 null,
                 options + "\n\nEscolha uma opção:",
-                title + " > " + APP_TITLE,
+                APP_TITLE + " " + title,
                 JOptionPane.QUESTION_MESSAGE
         );
     }
