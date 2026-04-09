@@ -1,8 +1,10 @@
 package ui.menus.main;
 
+import application.FitManager;
 import ui.menus.plan.PlanMenu;
 import ui.menus.reports.ReportsMenu;
 import ui.menus.student.StudentMenu;
+import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
 import ui.menus.enrollment.EnrollmentMenu;
@@ -20,7 +22,8 @@ import ui.menus.enrollment.EnrollmentMenu;
  */
 public class MainMenu {
 
-    private final UserInterface ui;
+    private UserInterface ui;
+    private FitManager fitManager;
 
     // Submenus — lazy instantiation
     private StudentMenu studentMenu;
@@ -28,8 +31,9 @@ public class MainMenu {
     private EnrollmentMenu enrollmentMenu;
     private ReportsMenu reportsMenu;
 
-    public MainMenu(UserInterface ui) {
+    public MainMenu(UserInterface ui, FitManager fitManager) {
         this.ui = ui;
+        this.fitManager = fitManager;
     }
 
     // ========================
@@ -38,7 +42,7 @@ public class MainMenu {
 
     private StudentMenu getStudentMenu() {
         if (studentMenu == null) {
-            studentMenu = new StudentMenu(ui);
+            studentMenu = new StudentMenu(ui, fitManager);
         }
         return studentMenu;
     }
@@ -82,6 +86,10 @@ public class MainMenu {
                 running = false;
                 continue;
             }
+            if (!InputParser.isNumeric(input)) {
+                ui.showError("Opção inválida. Digite um número de 1 a " + MainMenuOption.values().length + ".");
+                continue;
+            }
 
             MainMenuOption option = MainMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
@@ -99,6 +107,6 @@ public class MainMenu {
             }
         }
 
-        ui.showMessage("Obrigado por utilizar o FitManager! Até logo. 👋");
+        ui.showMessage("Obrigado por utilizar o FitManager! Até logo.");
     }
 }
