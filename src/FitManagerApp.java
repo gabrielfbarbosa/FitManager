@@ -1,3 +1,4 @@
+import application.FitManager;
 import ui.menus.main.MainMenu;
 import ui.screen.UserInterface;
 
@@ -7,7 +8,9 @@ public class FitManagerApp {
 
         // Instancia os componentes principais
         UserInterface ui = new UserInterface();
-        MainMenu mainMenu = new MainMenu(ui);
+        FitManager fitManager = new FitManager();
+
+        MainMenu mainMenu = new MainMenu(ui, fitManager);
 
         // Inicia o sistema
         mainMenu.start();
