@@ -56,7 +56,7 @@ public class MainMenu {
 
     private EnrollmentMenu getEnrollmentMenu() {
         if (enrollmentMenu == null) {
-            enrollmentMenu = new EnrollmentMenu(ui);
+            enrollmentMenu = new EnrollmentMenu(ui, fitManager);
         }
         return enrollmentMenu;
     }
