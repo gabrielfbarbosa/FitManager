@@ -21,7 +21,7 @@ public class PlanMenu {
     private final UserInterface ui;
     private final FitManager fitManager;
 
-    public PlanMenu(UserInterface ui) {
+    public PlanMenu(UserInterface ui, FitManager fitManager) {
         this.ui = ui;
         this.fitManager = new FitManager();
     }
