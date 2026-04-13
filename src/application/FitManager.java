@@ -207,4 +207,16 @@ public class FitManager {
         String cleanCpf = Student.cleanCpf(cpf);
         return enrollmentService.listHistoryByStudent(cleanCpf);
     }
+
+    /**
+     * Registra um novo pagamento para uma matrícula.
+     */
+    public OperationResult registerPayment(
+            int enrollmentCode,
+            double amount,
+            PaymentType paymentType,
+            String description
+    ) {
+        return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description);
+    }
 }
