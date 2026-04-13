@@ -21,7 +21,7 @@ public class EnrollmentMenu {
     private UserInterface ui;
     private FitManager fitManager;
 
-    public EnrollmentMenu(UserInterface ui) {
+    public EnrollmentMenu(UserInterface ui, FitManager fitManager) {
         this.ui = ui;
         this.fitManager = fitManager;
     }
