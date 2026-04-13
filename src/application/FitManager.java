@@ -1,10 +1,16 @@
 package application;
 
-import application.services.EnrollmentService;
-import application.services.PlanService;
 import application.services.StudentService;
-import domain.model.Student;
+import application.services.PlanService;
+import application.services.EnrollmentService;
 import domain.model.enums.PlanType;
+import domain.model.enums.PaymentType;
+import domain.model.Plan;
+import domain.model.Student;
+import domain.model.Enrollment;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
@@ -19,13 +25,13 @@ import domain.model.enums.PlanType;
 public class FitManager {
 
     private StudentService studentService;
-    private EnrollmentService enrollmentService;
     private PlanService planService;
+    private EnrollmentService enrollmentService;
 
     public FitManager() {
         this.studentService = new StudentService();
-        this.enrollmentService = new EnrollmentService();
         this.planService = new PlanService();
+        this.enrollmentService = new EnrollmentService();
     }
 
     // ============================
@@ -120,5 +126,85 @@ public class FitManager {
      */
     public OperationResult listAllPlans() {
         return planService.listAll();
+    }
+
+    // ============================
+    // Operações de Matrículas
+    // ============================
+
+    /**
+     * Realiza a matrícula de um aluno em um plano.
+     */
+    public OperationResult enrollStudent(String cpf, String planName, String startDateStr,
+                                         int durationMonths, double initialAmount,
+                                         PaymentType paymentType, String paymentDescription) {
+
+        String cleanCpf = Student.cleanCpf(cpf);
+
+        OperationResult studentResult = studentService.findByCpf(cleanCpf);
+        if (!studentResult.isSuccess()) {
+            return studentResult;
+        }
+
+        OperationResult planResult = planService.findByName(planName);
+        if (!planResult.isSuccess()) {
+            return planResult;
+        }
+
+        if (enrollmentService.hasActiveEnrollment(cleanCpf)) {
+            return new OperationResult(false,
+                    "O aluno já possui uma matrícula ativa. "
+                            + "Cancele a matrícula atual antes de realizar uma nova.");
+        }
+
+        OperationResult paymentCheck = validateInitialPayment(initialAmount, paymentType);
+        if (!paymentCheck.isSuccess()) {
+            return paymentCheck;
+        }
+
+        LocalDate startDate = LocalDate.parse(
+                startDateStr.trim(),
+                DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        Student student = (Student) studentResult.getData();
+        Plan plan = (Plan) planResult.getData();
+        return enrollmentService.enroll(student, plan, startDate, durationMonths,
+                initialAmount, paymentType, paymentDescription);
+    }
+
+    /**
+     * Valida o valor e o tipo do pagamento inicial de uma matrícula.
+     */
+    private OperationResult validateInitialPayment(double initialAmount, PaymentType paymentType) {
+        if (initialAmount <= 0) {
+            return new OperationResult(false, "O valor do pagamento inicial deve ser positivo.");
+        }
+        if (paymentType == null) {
+            return new OperationResult(false, "O tipo de pagamento é obrigatório.");
+        }
+        return new OperationResult(true, "ok");
+    }
+
+    /**
+     * Cancela uma matrícula ativa.
+     */
+    public OperationResult cancelEnrollment(int enrollmentCode) {
+        return enrollmentService.cancelEnrollment(enrollmentCode);
+    }
+
+    /**
+     * Consulta a matrícula ativa de um aluno pelo CPF.
+     */
+    public OperationResult findActiveEnrollmentByStudent(String cpf) {
+        String cleanCpf = Student.cleanCpf(cpf);
+        return enrollmentService.findActiveByStudentCpf(cleanCpf);
+    }
+
+    /**
+     * Lista o histórico de matrículas de um aluno.
+     */
+    public OperationResult listEnrollmentHistory(String cpf) {
+        String cleanCpf = Student.cleanCpf(cpf);
+        return enrollmentService.listHistoryByStudent(cleanCpf);
     }
 }

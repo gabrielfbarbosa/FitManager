@@ -1,8 +1,8 @@
 package application.services;
 
 import application.OperationResult;
-import domain.enums.EnrollmentStatus;
-import domain.enums.PaymentType;
+import domain.model.enums.EnrollmentStatus;
+import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
 import domain.model.Payment;
 import domain.model.Plan;
