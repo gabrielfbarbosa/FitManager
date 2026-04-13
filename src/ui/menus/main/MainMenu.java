@@ -49,7 +49,7 @@ public class MainMenu {
 
     private PlanMenu getPlanMenu() {
         if (planMenu == null) {
-            planMenu = new PlanMenu(ui);
+            planMenu = new PlanMenu(ui, fitManager);
         }
         return planMenu;
     }

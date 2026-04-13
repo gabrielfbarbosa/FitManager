@@ -1,8 +1,10 @@
 package application;
 
 import application.services.EnrollmentService;
+import application.services.PlanService;
 import application.services.StudentService;
 import domain.model.Student;
+import domain.model.enums.PlanType;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
@@ -18,10 +20,12 @@ public class FitManager {
 
     private StudentService studentService;
     private EnrollmentService enrollmentService;
+    private PlanService planService;
 
     public FitManager() {
         this.studentService = new StudentService();
         this.enrollmentService = new EnrollmentService();
+        this.planService = new PlanService();
     }
 
     // ============================
@@ -82,5 +86,39 @@ public class FitManager {
      */
     public OperationResult listAllStudents() {
         return studentService.listAll();
+    }
+
+    // ============================
+    // Operações de Planos
+    // ============================
+
+    /**
+     * Registra um novo plano.
+     */
+    public OperationResult registerPlan(String name, String description, PlanType type,
+                                        int minimumDuration, double pricePerMonth) {
+        return planService.registerPlan(name, description, type, minimumDuration, pricePerMonth);
+    }
+
+    /**
+     * Consulta um plano pelo nome.
+     */
+    public OperationResult findPlanByName(String name) {
+        return planService.findByName(name);
+    }
+
+    /**
+     * Atualiza o preço mensal de um plano.
+     * Não afeta matrículas já registradas — totalPrice é fixado na criação do Enrollment.
+     */
+    public OperationResult updatePlanPrice(String name, double newPrice) {
+        return planService.updatePrice(name, newPrice);
+    }
+
+    /**
+     * Lista todos os planos cadastrados.
+     */
+    public OperationResult listAllPlans() {
+        return planService.listAll();
     }
 }
