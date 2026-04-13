@@ -1,11 +1,11 @@
 package ui.menus.enrollment;
 
 public enum EnrollmentMenuOption {
-    REALIZAR_MATRICULA(1, "Realizar matrícula"),
+    MATRICULAR(1, "Realizar matrícula"),
     REGISTRAR_PAGAMENTO(2, "Registrar pagamento"),
-    CANCELAR_MATRICULA(3, "Cancelar matrícula"),
+    CANCELAR(3, "Cancelar matrícula"),
     CONSULTAR_ATIVA(4, "Consultar matrícula ativa"),
-    LISTAR_HISTORICO(5, "Listar histórico"),
+    HISTORICO(5, "Listar histórico"),
     VOLTAR(6, "Voltar");
 
     private final int numero;
