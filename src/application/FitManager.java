@@ -4,6 +4,7 @@ import application.services.EnrollmentService;
 import application.services.PlanService;
 import application.services.StudentService;
 import domain.model.Student;
+import domain.model.enums.PlanType;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
