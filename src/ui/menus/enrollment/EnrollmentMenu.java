@@ -1,6 +1,13 @@
 package ui.menus.enrollment;
 
+import application.FitManager;
+import application.OperationResult;
+import domain.model.enums.PaymentType;
+import domain.model.Enrollment;
+import ui.screen.InputParser;
 import ui.screen.UserInterface;
+
+import java.util.ArrayList;
 
 /**
  * Menu de gerenciamento de matrículas.
@@ -11,14 +18,17 @@ import ui.screen.UserInterface;
  */
 public class EnrollmentMenu {
 
-    private final UserInterface ui;
+    private UserInterface ui;
+    private FitManager fitManager;
 
     public EnrollmentMenu(UserInterface ui) {
         this.ui = ui;
+        this.fitManager = fitManager;
     }
 
     /**
      * Loop principal do menu de matrículas.
+     * Exibe opções até o usuário escolher "Voltar".
      */
     public void run() {
         boolean running = true;
@@ -31,23 +41,210 @@ public class EnrollmentMenu {
             String input = ui.showMenu("> GERENCIAR MATRÍCULAS", menuOptions);
 
             if (input == null) { running = false; continue; }
+            if (!InputParser.isNumeric(input)) {
+                ui.showError("Opção inválida. Digite um número de 1 a " + EnrollmentMenuOption.values().length + ".");
+                continue;
+            }
 
             EnrollmentMenuOption option = EnrollmentMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
             if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a "
-                        + EnrollmentMenuOption.values().length + ".");
+                ui.showError("Opção inválida. Escolha de 1 a " + EnrollmentMenuOption.values().length + ".");
                 continue;
             }
 
             switch (option) {
-                case REALIZAR_MATRICULA:   running = false; break;
-                case REGISTRAR_PAGAMENTO:  running = false; break;
-                case CANCELAR_MATRICULA:   running = false; break;
-                case CONSULTAR_ATIVA:      running = false; break;
-                case LISTAR_HISTORICO:     running = false; break;
-                case VOLTAR:               running = false; break;
+                case MATRICULAR:        enrollStudent();          break;
+                case CONSULTAR_ATIVA:   findActiveEnrollment();   break;
+                case HISTORICO:         listHistory();            break;
+                case CANCELAR:          cancelEnrollment();       break;
+                case REGISTRAR_PAGAMENTO: registerPayment();     break;
+                case VOLTAR:            running = false;          break;
             }
         }
+    }
+
+    /**
+     * Fluxo de matrícula de um aluno em um plano.
+     */
+    private void enrollStudent() {
+        String cpf = ui.getInput("Digite o CPF do aluno:");
+        if (cpf == null) return;
+
+        String planName = ui.getInput("Digite o nome do plano:");
+        if (planName == null) return;
+
+        String startDateStr = ui.getInput("Digite a data de início da matrícula (dd/mm/aaaa):");
+        if (startDateStr == null) return;
+
+        String durationStr = ui.getInput("Digite a duração (em meses):");
+        if (durationStr == null) return;
+
+        int durationMonths = InputParser.parseIntSafe(durationStr);
+        if (durationMonths == Integer.MIN_VALUE || durationMonths <= 0) {
+            ui.showError("A duração deve ser um número positivo.");
+            return;
+        }
+
+        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99.90):");
+        if (initialAmountStr == null) return;
+
+        double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
+        if (Double.isNaN(initialAmount) || initialAmount <= 0) {
+            ui.showError("O valor deve ser positivo.");
+            return;
+        }
+
+        PaymentType paymentType = selectPaymentType();
+        if (paymentType == null) return;
+
+        String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
+        if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
+
+        OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
+                durationMonths, initialAmount, paymentType, paymentDescription);
+
+        if (result.isSuccess()) {
+            Enrollment enrollment = (Enrollment) result.getData();
+            ui.showMessage(result.getMessage() + "\n\n" + buildEnrollmentSummary(enrollment));
+        } else {
+            ui.showError(result.getMessage());
+        }
+    }
+
+    /**
+     * Fluxo de consulta da matrícula ativa de um aluno.
+     */
+    private void findActiveEnrollment() {
+        String cpf = ui.getInput("Digite o CPF do aluno:");
+        if (cpf == null) return;
+
+        OperationResult result = fitManager.findActiveEnrollmentByStudent(cpf);
+
+        if (result.isSuccess()) {
+            Enrollment enrollment = (Enrollment) result.getData();
+            ui.showMessage("Matrícula ativa encontrada:\n\n" + buildEnrollmentSummary(enrollment));
+        } else {
+            ui.showError(result.getMessage());
+        }
+    }
+
+    /**
+     * Fluxo de listagem do histórico de matrículas de um aluno.
+     */
+    private void listHistory() {
+        String cpf = ui.getInput("Digite o CPF do aluno:");
+        if (cpf == null) return;
+
+        OperationResult result = fitManager.listEnrollmentHistory(cpf);
+
+        if (!result.isSuccess()) {
+            ui.showError(result.getMessage());
+            return;
+        }
+
+        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        String message = "> HISTÓRICO DE MATRÍCULAS\n";
+        message += "Total: " + enrollments.size() + " matrícula(s)\n\n";
+
+        for (int i = 0; i < enrollments.size(); i++) {
+            message += "--- Matrícula " + (i + 1) + " ---\n";
+            message += enrollments.get(i).toString();
+            if (i < enrollments.size() - 1) {
+                message += "\n\n";
+            }
+        }
+
+        ui.showScrollableMessage(message);
+    }
+
+    /**
+     * Fluxo de cancelamento de uma matrícula.
+     */
+    private void cancelEnrollment() {
+        String codeStr = ui.getInput("Digite o código da matrícula a cancelar:");
+        if (codeStr == null) return;
+
+        int code = InputParser.parseIntSafe(codeStr);
+        if (code == Integer.MIN_VALUE) {
+            ui.showError("Código inválido.");
+            return;
+        }
+
+        String confirm = ui.getInput("Tem certeza que deseja cancelar a matrícula " + code +
+                "?\nDigite 'S' para confirmar ou qualquer outra tecla para cancelar:");
+        if (confirm == null || !confirm.trim().equalsIgnoreCase("S")) {
+            ui.showMessage("Operação cancelada.");
+            return;
+        }
+
+        OperationResult result = fitManager.cancelEnrollment(code);
+
+        if (result.isSuccess()) {
+            ui.showMessage(result.getMessage());
+        } else {
+            ui.showError(result.getMessage());
+        }
+    }
+
+    /**
+     * Fluxo de registro de pagamento (será implementado na Branch 5).
+     * Por enquanto, apenas exibe uma mensagem informativa.
+     */
+    private void registerPayment() {
+        ui.showMessage("Funcionalidade será implementada na próxima versão do FitManager.");
+    }
+
+    /**
+     * Auxilia na seleção de um tipo de pagamento.
+     * Exibe todas as opções e retorna a escolha do usuário.
+     */
+    private PaymentType selectPaymentType() {
+        String options = "Escolha o tipo de pagamento:\n";
+        int count = 1;
+        for (PaymentType type : PaymentType.values()) {
+            options += count + " - " + type.getLabel() + "\n";
+            count++;
+        }
+
+        while (true) {
+            String input = ui.getInput(options + "\nOpção:");
+            if (input == null) return null;
+
+            if (!InputParser.isNumeric(input)) {
+                ui.showError("Digite um número válido.");
+                continue;
+            }
+
+            int choice = Integer.parseInt(input.trim());
+            if (choice >= 1 && choice <= PaymentType.values().length) {
+                return PaymentType.values()[choice - 1];
+            } else {
+                ui.showError("Opção inválida. Escolha de 1 a " + PaymentType.values().length + ".");
+            }
+        }
+    }
+
+    /**
+     * Constrói um sumário formatado de uma matrícula para exibição.
+     */
+    private String buildEnrollmentSummary(Enrollment enrollment) {
+        String formatDate = "%02d/%02d/%04d";
+        return "Código: " + enrollment.getCode() + "\n" +
+                "Plano: " + enrollment.getPlanName() + "\n" +
+                "Data Início: " + String.format(formatDate,
+                enrollment.getStartDate().getDayOfMonth(),
+                enrollment.getStartDate().getMonthValue(),
+                enrollment.getStartDate().getYear()) + "\n" +
+                "Data Fim: " + String.format(formatDate,
+                enrollment.getEndDate().getDayOfMonth(),
+                enrollment.getEndDate().getMonthValue(),
+                enrollment.getEndDate().getYear()) + "\n" +
+                "Duração: " + enrollment.getDurationMonths() +
+                (enrollment.getDurationMonths() == 1 ? " mês" : " meses") + "\n" +
+                "Preço Total: R$ " + String.format("%.2f", enrollment.getTotalPrice()) + "\n" +
+                "Saldo Pendente: R$ " + String.format("%.2f", enrollment.calculateBalance()) + "\n" +
+                "Status: " + enrollment.getStatus().getLabel() + "\n" +
+                "Pagamentos Registrados: " + enrollment.getPayments().size();
     }
 }
