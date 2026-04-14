@@ -4,6 +4,7 @@ public enum ReportsMenuOption {
     ALUNOS_ATIVOS(1, "Alunos com matrícula ativa"),
     SALDO_PENDENTE(2, "Matrículas com saldo pendente"),
     TODAS_MATRICULAS(3, "Todas as matrículas"),
+    ESTATISTICAS(5, "Estatisticas"),
     VOLTAR(4, "Voltar");
 
     private final int numero;
