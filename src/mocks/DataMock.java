@@ -1,6 +1,8 @@
 package mocks;
 
 import application.FitManager;
+import application.OperationResult;
+import domain.model.Enrollment;
 import domain.model.enums.PaymentType;
 import domain.model.enums.PlanType;
 
@@ -17,7 +19,7 @@ import domain.model.enums.PlanType;
  */
 public class DataMock {
 
-    public static void mock(FitManager fm) {
+    public static void populateDemo(FitManager fm) {
         mockPlans(fm);
         mockStudents(fm);
         mockEnrollments(fm);
@@ -122,6 +124,54 @@ public class DataMock {
                 "marcos.lima@email.com",
                 "11/12/1992"
         );
+
+        // Ativa com matrícula ativa e pagamentos parciais (3 de 6 meses pagos)
+        fm.registerStudent(
+                "Patrícia Oliveira Santos",
+                "12345678909",
+                "patricia.santos@email.com",
+                "25/05/1997"
+        );
+
+        // Ativo com matrícula ativa totalmente quitada
+        fm.registerStudent(
+                "Lucas Rodrigues Ferreira",
+                "98765432100",
+                "(67) 99234-5678",
+                "10/02/1994"
+        );
+
+        // Ativa com histórico: matrícula cancelada + nova matrícula ativa
+        fm.registerStudent(
+                "Mariana Beatriz Campos",
+                "11122233396",
+                "mariana.campos@gmail.com",
+                "17/09/2001"
+        );
+
+        // Ativo sem matrícula (apenas cadastrado)
+        fm.registerStudent(
+                "Thiago Nascimento Gomes",
+                "44455566619",
+                "(67) 98321-4567",
+                "03/07/1988"
+        );
+
+        // Ativa com matrícula ativa e saldo pendente (entrada simbólica)
+        fm.registerStudent(
+                "Letícia Aparecida Moura",
+                "23456789092",
+                "leticia.moura@email.com",
+                "12/11/1999"
+        );
+
+        // Ficará inativo sem matrícula
+        fm.registerStudent(
+                "Diego Henrique Prado",
+                "77788899941",
+                "diego.prado@email.com",
+                "29/04/1991"
+        );
     }
 
     // ============================
@@ -130,24 +180,27 @@ public class DataMock {
 
     private static void mockEnrollments(FitManager fm) {
 
-        // Matrícula 1 — Carlos / ativa / parcial
-        fm.enrollStudent(
+        // Matrícula 1 — Carlos / ativa / parcial (3 de 12 parcelas pagas)
+        OperationResult r1 = fm.enrollStudent(
                 "52998224725",
                 "Plano Anual",
-                "01/01/2026",
+                "13/08/2026",
                 12,
                 69.90,
                 PaymentType.PIX,
-                "1ª parcela — janeiro"
+                "1ª parcela — abril"
         );
-        fm.registerPayment(1, 69.90, PaymentType.PIX, "2ª parcela — fevereiro");
-        fm.registerPayment(1, 69.90, PaymentType.DEBIT_CARD, "3ª parcela — março");
+        if (r1.isSuccess()) {
+            int code = ((Enrollment) r1.getData()).getCode();
+            fm.registerPayment(code, 69.90, PaymentType.PIX,        "2ª parcela — maio");
+            fm.registerPayment(code, 69.90, PaymentType.DEBIT_CARD, "3ª parcela — junho");
+        }
 
         // Matrícula 2 — Ana / ativa / saldo pendente
         fm.enrollStudent(
                 "71428793860",
                 "Plano Mensal",
-                "01/03/2026",
+                "13/09/2026",
                 1,
                 50.00,
                 PaymentType.CASH,
@@ -155,52 +208,127 @@ public class DataMock {
         );
 
         // Matrícula 3 — Bruno / ativa / quitada
-        fm.enrollStudent(
+        OperationResult r3 = fm.enrollStudent(
                 "87748248800",
                 "Plano Trimestral",
-                "01/01/2026",
+                "13/10/2026",
                 3,
                 89.90,
                 PaymentType.CREDIT_CARD,
                 "1ª parcela"
         );
-        fm.registerPayment(3, 89.90, PaymentType.CREDIT_CARD, "2ª parcela");
-        fm.registerPayment(3, 89.90, PaymentType.CREDIT_CARD, "3ª parcela — quitado");
+        if (r3.isSuccess()) {
+            int code = ((Enrollment) r3.getData()).getCode();
+            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "2ª parcela");
+            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "3ª parcela — quitado");
+        }
 
         // Matrícula 4 — Fernanda / cancelada
-        fm.enrollStudent(
-                "34650463238", //34650463280
+        OperationResult r4 = fm.enrollStudent(
+                "34650463238",
                 "Plano Semestral",
-                "01/02/2026",
+                "13/11/2026",
                 6,
                 79.90,
                 PaymentType.PIX,
                 "Pagamento inicial"
         );
-        fm.cancelEnrollment(4);
+        if (r4.isSuccess()) {
+            fm.cancelEnrollment(((Enrollment) r4.getData()).getCode());
+        }
 
         // Matrícula 5 — Juliana / cancelada, depois a aluna será inativada
-        fm.enrollStudent(
-                "07859546434", // "07859546431",
+        OperationResult r5 = fm.enrollStudent(
+                "07859546434",
                 "Plano Mensal",
-                "10/02/2026",
+                "13/12/2026",
                 1,
                 99.90,
                 PaymentType.PIX,
                 "Pagamento inicial"
         );
-        fm.cancelEnrollment(5);
+        if (r5.isSuccess()) {
+            fm.cancelEnrollment(((Enrollment) r5.getData()).getCode());
+        }
 
         // Matrícula 6 — Fernanda novamente, agora ativa
         // Serve para testar histórico com múltiplas matrículas no mesmo CPF
         fm.enrollStudent(
                 "34650463238",
                 "Plano Trimestral",
-                "15/03/2026",
+                "13/11/2026",
                 3,
                 89.90,
                 PaymentType.CREDIT_CARD,
                 "Nova matrícula após cancelamento anterior"
+        );
+
+        // Patrícia / Plano Semestral / ativa / 3 de 6 parcelas pagas
+        OperationResult r7 = fm.enrollStudent(
+                "12345678909",
+                "Plano Semestral",
+                "15/04/2026",
+                6,
+                79.90,
+                PaymentType.PIX,
+                "1ª parcela — abril"
+        );
+        if (r7.isSuccess()) {
+            int code = ((Enrollment) r7.getData()).getCode();
+            fm.registerPayment(code, 79.90, PaymentType.PIX,         "2ª parcela — maio");
+            fm.registerPayment(code, 79.90, PaymentType.DEBIT_CARD,  "3ª parcela — junho");
+        }
+
+        // Lucas / Plano Mensal / ativa / totalmente quitada
+        OperationResult r8 = fm.enrollStudent(
+                "98765432100",
+                "Plano Mensal",
+                "15/04/2026",
+                1,
+                99.90,
+                PaymentType.CREDIT_CARD,
+                "Pagamento integral"
+        );
+
+        // Mariana / 1ª matrícula (Plano Trimestral) → cancelada
+        OperationResult r9 = fm.enrollStudent(
+                "11122233396",
+                "Plano Trimestral",
+                "15/04/2026",
+                3,
+                89.90,
+                PaymentType.CASH,
+                "1ª parcela"
+        );
+        if (r9.isSuccess()) {
+            int code = ((Enrollment) r9.getData()).getCode();
+            fm.cancelEnrollment(code);
+        }
+
+        // Mariana / 2ª matrícula (Plano Anual) → ativa / parcialmente paga
+        OperationResult r10 = fm.enrollStudent(
+                "11122233396",
+                "Plano Anual",
+                "15/04/2026",
+                12,
+                69.90,
+                PaymentType.PIX,
+                "1ª parcela — nova matrícula após cancelamento"
+        );
+        if (r10.isSuccess()) {
+            int code = ((Enrollment) r10.getData()).getCode();
+            fm.registerPayment(code, 69.90, PaymentType.PIX, "2ª parcela");
+        }
+
+        // Letícia / Plano Trimestral / ativa / entrada simbólica (saldo pendente alto)
+        fm.enrollStudent(
+                "23456789092",
+                "Plano Trimestral",
+                "15/04/2026",
+                3,
+                50.00,
+                PaymentType.CASH,
+                "Entrada parcial"
         );
     }
 
@@ -210,9 +338,12 @@ public class DataMock {
 
     private static void mockInactiveStudents(FitManager fm) {
         // Juliana fica inativa, mas mantém histórico
-        fm.removeStudent("07859546434");//"07859546431"
+        fm.removeStudent("07859546434");
 
         // Marcos fica inativo e sem matrícula
-        fm.removeStudent("18345678904"); // "18345678909"
+        fm.removeStudent("18345678904");
+
+        // Diego fica inativo sem matrícula
+        fm.removeStudent("77788899941");
     }
 }
