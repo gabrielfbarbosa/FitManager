@@ -26,7 +26,7 @@ O sistema permite o gerenciamento de alunos, planos, matrículas e pagamentos po
 ![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white)
 ![IntelliJ IDEA](https://img.shields.io/badge/IntelliJIDEA-000000.svg?style=for-the-badge&logo=intellij-idea&logoColor=white)
 
--  **Java 17 ou superior**
+-  **Java 25.0.1**
 - Interface gráfica: `JOptionPane`
 - Sem dependências externas — apenas a biblioteca padrão do Java
 
