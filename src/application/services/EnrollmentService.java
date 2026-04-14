@@ -270,4 +270,63 @@ public class EnrollmentService {
         }
         return null;
     }
+
+    /**
+     * Lista todas as matrículas (ativas e canceladas).
+     *
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listAll() {
+        if (enrollments.isEmpty()) {
+            return new OperationResult(false, "Nenhuma matrícula cadastrada no sistema.");
+        }
+
+        return new OperationResult(true,
+                enrollments.size() + " matrícula(s) encontrada(s).",
+                new ArrayList<>(enrollments));
+    }
+
+    /**
+     * Lista apenas as matrículas ativas.
+     *
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listActive() {
+        ArrayList<Enrollment> activeEnrollments = new ArrayList<>();
+        for (Enrollment enrollment : enrollments) {
+            if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
+                activeEnrollments.add(enrollment);
+            }
+        }
+
+        if (activeEnrollments.isEmpty()) {
+            return new OperationResult(false, "Nenhuma matrícula ativa encontrada.");
+        }
+
+        return new OperationResult(true,
+                activeEnrollments.size() + " matrícula(s) ativa(s) encontrada(s).",
+                activeEnrollments);
+    }
+
+    /**
+     * Lista apenas as matrículas que possuem saldo pendente (não estão totalmente pagas).
+     *
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listWithPendingBalance() {
+        ArrayList<Enrollment> pendingEnrollments = new ArrayList<>();
+        for (Enrollment enrollment : enrollments) {
+            if (enrollment.calculateBalance() > 0) {
+                pendingEnrollments.add(enrollment);
+            }
+        }
+
+        if (pendingEnrollments.isEmpty()) {
+            return new OperationResult(false, "Nenhuma matrícula com saldo pendente.");
+        }
+
+        return new OperationResult(true,
+                pendingEnrollments.size() + " matrícula(s) com saldo pendente encontrada(s).",
+                pendingEnrollments);
+    }
 }

@@ -63,7 +63,7 @@ public class MainMenu {
 
     private ReportsMenu getReportsMenu() {
         if (reportsMenu == null) {
-            reportsMenu = new ReportsMenu(ui);
+            reportsMenu = new ReportsMenu(ui, fitManager);
         }
         return reportsMenu;
     }

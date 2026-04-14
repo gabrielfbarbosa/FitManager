@@ -11,6 +11,7 @@ import domain.model.Enrollment;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
@@ -218,5 +219,74 @@ public class FitManager {
             String description
     ) {
         return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description);
+    }
+
+    // ============================
+    // Operações de Relatórios
+    // ============================
+
+    /**
+     * Lista todas as matrículas (ativas e canceladas).
+     */
+    public OperationResult listAllEnrollments() {
+        return enrollmentService.listAll();
+    }
+
+    /**
+     * Lista apenas as matrículas ativas.
+     */
+    public OperationResult listActiveEnrollments() {
+        return enrollmentService.listActive();
+    }
+
+    /**
+     * Lista as matrículas com saldo pendente.
+     */
+    public OperationResult listEnrollmentsWithPendingBalance() {
+        return enrollmentService.listWithPendingBalance();
+    }
+
+    /**
+     * Calcula e retorna estatísticas gerais do sistema.
+     */
+    public OperationResult getSystemStatistics() {
+        OperationResult allStudents = listAllStudents();
+        OperationResult allEnrollments = listAllEnrollments();
+        OperationResult allPlans = listAllPlans();
+
+        int totalStudents = 0;
+        if (allStudents.isSuccess()) {
+            ArrayList<Student> students = (ArrayList<Student>) allStudents.getData();
+            totalStudents = students.size();
+        }
+
+        int totalEnrollments = 0;
+        int totalActiveEnrollments = 0;
+        double totalBalance = 0;
+        if (allEnrollments.isSuccess()) {
+            ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) allEnrollments.getData();
+            totalEnrollments = enrollments.size();
+            for (Enrollment enrollment : enrollments) {
+                if (enrollment.getStatus().toString().equals("Ativa")) {
+                    totalActiveEnrollments++;
+                }
+                totalBalance += enrollment.calculateBalance();
+            }
+        }
+
+        int totalPlans = 0;
+        if (allPlans.isSuccess()) {
+            ArrayList<Plan> plans = (ArrayList<Plan>) allPlans.getData();
+            totalPlans = plans.size();
+        }
+
+        String stats = "ESTATÍSTICAS DO SISTEMA\n\n" +
+                "Alunos Cadastrados: " + totalStudents + "\n" +
+                "Planos Disponíveis: " + totalPlans + "\n" +
+                "Total de Matrículas: " + totalEnrollments + "\n" +
+                "Matrículas Ativas: " + totalActiveEnrollments + "\n" +
+                "Saldo Pendente Total: R$ " + String.format("%.2f", totalBalance);
+
+        return new OperationResult(true, stats);
     }
 }
