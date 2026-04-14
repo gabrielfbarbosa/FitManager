@@ -23,7 +23,7 @@ public class PlanMenu {
 
     public PlanMenu(UserInterface ui, FitManager fitManager) {
         this.ui = ui;
-        this.fitManager = new FitManager();
+        this.fitManager = fitManager;
     }
 
     /**
@@ -54,10 +54,10 @@ public class PlanMenu {
             }
 
             switch (option) {
-                case CADASTRAR:      running = false;   break;
-                case CONSULTAR_NOME: running = false;   break;
-                case ALTERAR_PRECO:  running = false;   break;
-                case LISTAR:         running = false;   break;
+                case CADASTRAR:      registerPlan();   break;
+                case CONSULTAR_NOME: findPlanByName();    break;
+                case ALTERAR_PRECO:  updatePrice();   break;
+                case LISTAR:         listAllPlans();   break;
                 case VOLTAR:         running = false;   break;
             }
         }
