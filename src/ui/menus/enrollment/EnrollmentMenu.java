@@ -188,11 +188,40 @@ public class EnrollmentMenu {
     }
 
     /**
-     * Fluxo de registro de pagamento (será implementado na Branch 5).
-     * Por enquanto, apenas exibe uma mensagem informativa.
+     * Fluxo de registro de um novo pagamento para uma matrícula.
      */
     private void registerPayment() {
-        ui.showMessage("Funcionalidade será implementada na próxima versão do FitManager.");
+        String codeStr = ui.getInput("Digite o código da matrícula:");
+        if (codeStr == null) return;
+
+        int code = InputParser.parseIntSafe(codeStr);
+        if (code == Integer.MIN_VALUE) {
+            ui.showError("Código inválido.");
+            return;
+        }
+
+        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99.90):");
+        if (amountStr == null) return;
+
+        double amount = InputParser.parseDoubleSafe(amountStr);
+        if (Double.isNaN(amount) || amount <= 0) {
+            ui.showError("O valor deve ser positivo.");
+            return;
+        }
+
+        PaymentType paymentType = selectPaymentType();
+        if (paymentType == null) return;
+
+        String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
+        if (description == null) description = "Pagamento adicional";
+
+        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description);
+
+        if (result.isSuccess()) {
+            ui.showMessage(result.getMessage());
+        } else {
+            ui.showError(result.getMessage());
+        }
     }
 
     /**

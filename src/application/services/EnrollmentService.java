@@ -201,6 +201,64 @@ public class EnrollmentService {
     }
 
     /**
+     * Registra um novo pagamento para uma matrícula.
+     * O pagamento é validado e então adicionado à matrícula.
+     *
+     * @return OperationResult indicando sucesso ou falha
+     */
+    public OperationResult registerPayment(
+            int enrollmentCode,
+            double amount,
+            PaymentType paymentType,
+            String description
+    ) {
+        OperationResult validationResult = validatePaymentParams(amount, paymentType);
+        if (!validationResult.isSuccess()) {
+            return validationResult;
+        }
+
+        Enrollment enrollment = findByCode(enrollmentCode);
+        if (enrollment == null) {
+            return new OperationResult(false, "Matrícula não encontrada.");
+        }
+
+        if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
+            return new OperationResult(false, "Não é possível registrar pagamento em matrícula cancelada.");
+        }
+
+        double remainingBalance = enrollment.calculateBalance();
+        if (amount > remainingBalance) {
+            return new OperationResult(false,
+                    "O valor do pagamento (R$ " + String.format("%.2f", amount) +
+                            ") excede o saldo pendente (R$ " + String.format("%.2f", remainingBalance) + ").");
+        }
+
+        Payment payment = buildPayment(amount, LocalDate.now(), paymentType, description);
+        enrollment.addPayment(payment);
+
+        String message = "✅ Pagamento registrado com sucesso!\n\n" +
+                "Código do Pagamento: " + payment.getCode() + "\n" +
+                "Valor: R$ " + String.format("%.2f", amount) + "\n" +
+                "Tipo: " + paymentType.getLabel() + "\n" +
+                "Novo Saldo Pendente: R$ " + String.format("%.2f", enrollment.calculateBalance());
+
+        return new OperationResult(true, message, payment);
+    }
+
+    /**
+     * Valida os parâmetros de um pagamento.
+     */
+    private OperationResult validatePaymentParams(double amount, PaymentType paymentType) {
+        if (amount <= 0) {
+            return new OperationResult(false, "O valor do pagamento deve ser positivo.");
+        }
+        if (paymentType == null) {
+            return new OperationResult(false, "O tipo de pagamento é obrigatório.");
+        }
+        return new OperationResult(true, "ok");
+    }
+
+    /**
      * Busca uma matrícula pelo código.
      * Utilizado internamente para validações e operações.
      */
