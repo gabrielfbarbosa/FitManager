@@ -220,7 +220,7 @@ Operações com efeito puramente confirmatório (ex.: `cancelEnrollment`, `remov
 - **Ponto único de parse** — o método `DateFormatter.parseDate(String)` substitui as chamadas repetidas a `LocalDate.parse(..., DateTimeFormatter.ofPattern("dd/MM/yyyy"))` em `StudentService` e `FitManager`.
 - **API mais legível nos `toString()`** — `DateFormatter.format(startDate)` em vez de três chamadas aninhadas.
 
-`CurrencyFormatter` expõe `format(double)`, `formatCurrency(double)` e `formatNumber(double)`; `DateFormatter` expõe sobrecargas de `format` para `LocalDate`, `LocalTime` e `LocalDateTime`, além de constantes públicas `DATE_PATTERN`, `TIME_PATTERN`, `DATE_TIME_PATTERN` e os respectivos `DateTimeFormatter`.
+`CurrencyFormatter` expõe `formatCurrency(double)`; `DateFormatter` expõe sobrecargas de `format` para `LocalDate`, além de constantes públicas `DATE_PATTERN`, `TIME_PATTERN`, `DATE_TIME_PATTERN` e os respectivos `DateTimeFormatter`.
 
 **Impacto:** todas as classes de domínio que possuem `toString()` com valores monetários ou datas (`Enrollment`, `Student`, `Payment`, `Plan`) passaram a delegar aos utilitários, assim como os menus `EnrollmentMenu` e `ReportsMenu` e os serviços/orquestrador que faziam parse. A pasta `util` foi criada para abrigar estas e futuras classes utilitárias puramente transversais ao domínio.
 
@@ -297,7 +297,7 @@ Adicionada à `UserInterface` para listagens extensas (histórico de matrículas
 
 ### 6.6 Pacote `util` — `CurrencyFormatter` e `DateFormatter`
 
-Classes estáticas que centralizam a formatação de valores monetários em reais (`NumberFormat` com `Locale("pt","BR")`) e de datas/horas (`DateTimeFormatter` para `LocalDate`, `LocalTime` e `LocalDateTime`). Substituem as chamadas repetidas a `String.format("%.2f", ...)` e `String.format("%02d/%02d/%04d", ...)` espalhadas pelo projeto, garantindo que valores como `2596.5` sejam sempre exibidos como `R$ 2.596,50` (com separador de milhar) e que datas sigam sempre o padrão `dd/MM/yyyy`. Descritas em detalhes em 4.21.
+Classes estáticas que centralizam a formatação de valores monetários em reais (`NumberFormat` com `Locale("pt","BR")`) e de datas (`DateTimeFormatter` para `LocalDate`). Substituem as chamadas repetidas a `String.format("%.2f", ...)` e `String.format("%02d/%02d/%04d", ...)` espalhadas pelo projeto, garantindo que valores como `2596.5` sejam sempre exibidos como `R$ 2.596,50` (com separador de milhar) e que datas sigam sempre o padrão `dd/MM/yyyy`. Descritas em detalhes em 4.21.
 
 ---
 
