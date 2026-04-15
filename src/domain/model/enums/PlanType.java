@@ -16,7 +16,6 @@ public enum PlanType {
         return label;
     }
 
-    @Override
     public String toString() {
         return label;
     }

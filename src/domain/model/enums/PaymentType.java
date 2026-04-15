@@ -16,7 +16,6 @@ public enum PaymentType {
         return label;
     }
 
-    @Override
     public String toString() {
         return label;
     }

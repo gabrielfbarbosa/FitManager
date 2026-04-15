@@ -6,6 +6,8 @@ import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
 import ui.screen.InputParser;
 import ui.screen.UserInterface;
+import util.CurrencyFormatter;
+import util.DateFormatter;
 
 import java.util.ArrayList;
 
@@ -258,21 +260,14 @@ public class EnrollmentMenu {
      * Constrói um sumário formatado de uma matrícula para exibição.
      */
     private String buildEnrollmentSummary(Enrollment enrollment) {
-        String formatDate = "%02d/%02d/%04d";
         return "Código: " + enrollment.getCode() + "\n" +
                 "Plano: " + enrollment.getPlanName() + "\n" +
-                "Data Início: " + String.format(formatDate,
-                enrollment.getStartDate().getDayOfMonth(),
-                enrollment.getStartDate().getMonthValue(),
-                enrollment.getStartDate().getYear()) + "\n" +
-                "Data Fim: " + String.format(formatDate,
-                enrollment.getEndDate().getDayOfMonth(),
-                enrollment.getEndDate().getMonthValue(),
-                enrollment.getEndDate().getYear()) + "\n" +
+                "Data Início: " + DateFormatter.format(enrollment.getStartDate()) + "\n" +
+                "Data Fim: " + DateFormatter.format(enrollment.getEndDate()) + "\n" +
                 "Duração: " + enrollment.getDurationMonths() +
                 (enrollment.getDurationMonths() == 1 ? " mês" : " meses") + "\n" +
-                "Preço Total: R$ " + String.format("%.2f", enrollment.getTotalPrice()) + "\n" +
-                "Saldo Pendente: R$ " + String.format("%.2f", enrollment.calculateBalance()) + "\n" +
+                "Preço Total: " + CurrencyFormatter.formatCurrency(enrollment.getTotalPrice()) + "\n" +
+                "Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance()) + "\n" +
                 "Status: " + enrollment.getStatus().getLabel() + "\n" +
                 "Pagamentos Registrados: " + enrollment.getPayments().size();
     }

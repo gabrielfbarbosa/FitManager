@@ -7,6 +7,7 @@ import domain.model.Enrollment;
 import domain.model.Payment;
 import domain.model.Plan;
 import domain.model.Student;
+import util.CurrencyFormatter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -69,9 +70,9 @@ public class EnrollmentService {
                 "Código: " + enrollment.getCode() + "\n" +
                 "Aluno: " + student.getName() + "\n" +
                 "Plano: " + plan.getName() + "\n" +
-                "Preço Total: R$ " + String.format("%.2f", totalPrice) + "\n" +
-                "Pagamento Inicial: R$ " + String.format("%.2f", initialAmount) + "\n" +
-                "Saldo Pendente: R$ " + String.format("%.2f", totalPrice - initialAmount);
+                "Preço Total: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
+                "Pagamento Inicial: " + CurrencyFormatter.formatCurrency(initialAmount) + "\n" +
+                "Saldo Pendente: " + CurrencyFormatter.formatCurrency(totalPrice - initialAmount);
 
         return new OperationResult(true, message, enrollment);
     }
@@ -229,8 +230,8 @@ public class EnrollmentService {
         double remainingBalance = enrollment.calculateBalance();
         if (amount > remainingBalance) {
             return new OperationResult(false,
-                    "O valor do pagamento (R$ " + String.format("%.2f", amount) +
-                            ") excede o saldo pendente (R$ " + String.format("%.2f", remainingBalance) + ").");
+                    "O valor do pagamento (" + CurrencyFormatter.formatCurrency(amount) +
+                            ") excede o saldo pendente (" + CurrencyFormatter.formatCurrency(remainingBalance) + ").");
         }
 
         Payment payment = buildPayment(amount, LocalDate.now(), paymentType, description);
@@ -238,9 +239,9 @@ public class EnrollmentService {
 
         String message = "✅ Pagamento registrado com sucesso!\n\n" +
                 "Código do Pagamento: " + payment.getCode() + "\n" +
-                "Valor: R$ " + String.format("%.2f", amount) + "\n" +
+                "Valor: " + CurrencyFormatter.formatCurrency(amount) + "\n" +
                 "Tipo: " + paymentType.getLabel() + "\n" +
-                "Novo Saldo Pendente: R$ " + String.format("%.2f", enrollment.calculateBalance());
+                "Novo Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance());
 
         return new OperationResult(true, message, payment);
     }

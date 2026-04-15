@@ -3,6 +3,8 @@ package domain.model;
 import java.time.LocalDate;
 import java.time.Period;
 
+import util.DateFormatter;
+
 public class Student {
 
     private String name;
@@ -180,13 +182,11 @@ public class Student {
         return removedAt;
     }
 
-    @Override
     public String toString() {
         return "Nome: " + name + "\n" +
                 "CPF: " + getFormattedCpf() + "\n" +
                 "Contato: " + contact + "\n" +
-                "Data de Nascimento: " + String.format("%02d/%02d/%04d",
-                birthDate.getDayOfMonth(), birthDate.getMonthValue(), birthDate.getYear()) + "\n" +
+                "Data de Nascimento: " + DateFormatter.format(birthDate) + "\n" +
                 "Idade: " + calculateAge() + " anos" + "\n" +
                 "Status: " + (active ? "Ativo" : "Inativo");
     }

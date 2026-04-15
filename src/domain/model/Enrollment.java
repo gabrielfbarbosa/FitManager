@@ -1,6 +1,8 @@
 package domain.model;
 
 import domain.model.enums.EnrollmentStatus;
+import util.CurrencyFormatter;
+import util.DateFormatter;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -141,19 +143,15 @@ public class Enrollment {
         return cancelledAt;
     }
 
-    @Override
     public String toString() {
-        String formatDate = "%02d/%02d/%04d";
         return "Código: " + code + "\n" +
                 "CPF: " + studentCpf + "\n" +
                 "Plano: " + planName + "\n" +
-                "Data Início: " + String.format(formatDate,
-                startDate.getDayOfMonth(), startDate.getMonthValue(), startDate.getYear()) + "\n" +
-                "Data Fim: " + String.format(formatDate,
-                endDate.getDayOfMonth(), endDate.getMonthValue(), endDate.getYear()) + "\n" +
+                "Data Início: " + DateFormatter.format(startDate) + "\n" +
+                "Data Fim: " + DateFormatter.format(endDate) + "\n" +
                 "Duração: " + durationMonths + (durationMonths == 1 ? " mês" : " meses") + "\n" +
-                "Preço Total: R$ " + String.format("%.2f", totalPrice) + "\n" +
-                "Saldo Pendente: R$ " + String.format("%.2f", calculateBalance()) + "\n" +
+                "Preço Total: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
+                "Saldo Pendente: " + CurrencyFormatter.formatCurrency(calculateBalance()) + "\n" +
                 "Status: " + status.getLabel() + "\n" +
                 "Pagamentos: " + payments.size();
     }
