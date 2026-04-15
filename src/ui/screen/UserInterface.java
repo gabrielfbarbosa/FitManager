@@ -108,10 +108,10 @@ public class UserInterface {
     /**
      * Solicita e converte uma entrada inteira do usuário.
      * Delega a validação e conversão ao InputParser.
-     * Retorna Integer.MIN_VALUE se o usuário cancelar ou digitar valor não numérico.
+     * Retorna InputParser.INVALID_INT se o usuário cancelar ou digitar valor não numérico.
      *
      * @param prompt texto do prompt exibido
-     * @return o valor inteiro, ou Integer.MIN_VALUE se cancelou ou inválido
+     * @return o valor inteiro, ou InputParser.INVALID_INT se cancelou ou inválido
      */
     public int getIntInput(String prompt) {
         String input = getInput(prompt);
@@ -122,10 +122,10 @@ public class UserInterface {
      * Solicita e converte uma entrada decimal do usuário.
      * Aceita vírgula como separador decimal.
      * Delega a validação e conversão ao InputParser.
-     * Retorna Double.NaN se o usuário cancelar ou digitar valor não numérico.
+     * Retorna InputParser.INVALID_DOUBLE se o usuário cancelar ou digitar valor não numérico.
      *
      * @param prompt texto do prompt exibido
-     * @return o valor decimal, ou Double.NaN se cancelou ou inválido
+     * @return o valor decimal, ou InputParser.INVALID_DOUBLE se cancelou ou inválido
      */
     public double getDoubleInput(String prompt) {
         String input = getInput(prompt);

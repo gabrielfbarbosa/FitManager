@@ -81,7 +81,7 @@ public class PlanMenu {
         if (minDurationStr == null) return;
 
         int minimumDuration = InputParser.parseIntSafe(minDurationStr);
-        if (minimumDuration == Integer.MIN_VALUE || minimumDuration <= 0) {
+        if (minimumDuration == InputParser.INVALID_INT || minimumDuration <= 0) {
             ui.showError("A duração mínima deve ser um número positivo.");
             return;
         }
@@ -90,7 +90,7 @@ public class PlanMenu {
         if (priceStr == null) return;
 
         double pricePerMonth = InputParser.parseDoubleSafe(priceStr);
-        if (Double.isNaN(pricePerMonth) || pricePerMonth <= 0) {
+        if (pricePerMonth == InputParser.INVALID_DOUBLE || pricePerMonth <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
         }
@@ -142,7 +142,7 @@ public class PlanMenu {
         if (newPriceStr == null) return;
 
         double newPrice = InputParser.parseDoubleSafe(newPriceStr);
-        if (Double.isNaN(newPrice) || newPrice <= 0) {
+        if (newPrice == InputParser.INVALID_DOUBLE || newPrice <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
         }

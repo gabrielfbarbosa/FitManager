@@ -10,9 +10,12 @@ package ui.screen;
  * Toda validação é feita caractere a caractere, sem regex e sem try/catch.
  * Responsabilidade única: transformar strings brutas de entrada em valores
  * primitivos seguros, ou sinalizar entrada inválida via valores sentinela
- * (Integer.MIN_VALUE para int, Double.NaN para double).
+ * definidos internamente na classe (como INVALID_INT e INVALID_DOUBLE).
  */
 public class InputParser {
+
+    public static final int INVALID_INT = -1;
+    public static final double INVALID_DOUBLE = -1.0;
 
     /**
      * Verifica se uma string representa um número inteiro não-negativo.
@@ -64,14 +67,14 @@ public class InputParser {
 
     /**
      * Converte uma string em inteiro de forma segura.
-     * Retorna Integer.MIN_VALUE se a string for nula, vazia ou não numérica.
+     * Retorna INVALID_INT se a string for nula, vazia ou não numérica.
      *
      * @param value string a converter
-     * @return valor inteiro, ou Integer.MIN_VALUE se inválido
+     * @return valor inteiro, ou INVALID_INT se inválido
      */
     public static int parseIntSafe(String value) {
         if (!isNumeric(value)) {
-            return Integer.MIN_VALUE;
+            return INVALID_INT;
         }
         return Integer.parseInt(value.trim());
     }
@@ -79,18 +82,18 @@ public class InputParser {
     /**
      * Converte uma string em double de forma segura.
      * Aceita vírgula como separador decimal.
-     * Retorna Double.NaN se a string for nula, vazia ou não numérica.
+     * Retorna INVALID_DOUBLE se a string for nula, vazia ou não numérica.
      *
      * @param value string a converter
-     * @return valor double, ou Double.NaN se inválido
+     * @return valor double, ou INVALID_DOUBLE se inválido
      */
     public static double parseDoubleSafe(String value) {
         if (value == null) {
-            return Double.NaN;
+            return INVALID_DOUBLE;
         }
         String normalized = value.trim().replace(",", ".");
         if (!isDecimal(normalized)) {
-            return Double.NaN;
+            return INVALID_DOUBLE;
         }
         return Double.parseDouble(normalized);
     }
