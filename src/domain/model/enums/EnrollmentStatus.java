@@ -14,7 +14,6 @@ public enum EnrollmentStatus {
         return label;
     }
 
-    @Override
     public String toString() {
         return label;
     }

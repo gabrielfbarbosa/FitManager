@@ -1,6 +1,7 @@
 package domain.model;
 
 import domain.model.enums.PlanType;
+import util.CurrencyFormatter;
 
 public class Plan {
     private static final double DISCOUNT_RATE = 0.10; // 10% de desconto nos meses excedentes
@@ -102,12 +103,11 @@ public class Plan {
         this.pricePerMonth = pricePerMonth;
     }
 
-    @Override
     public String toString() {
         return "Nome: " + name + "\n" +
                 "Descrição: " + description + "\n" +
                 "Tipo: " + type.getLabel() + "\n" +
                 "Duração mínima: " + minimumDuration + (minimumDuration == 1 ? " mês" : " meses") + "\n" +
-                "Preço/mês: R$ " + String.format("%.2f", pricePerMonth);
+                "Preço/mês: " + CurrencyFormatter.formatCurrency(pricePerMonth);
     }
 }

@@ -8,10 +8,12 @@ import domain.model.enums.PaymentType;
 import domain.model.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
+import util.CurrencyFormatter;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+
+import util.DateFormatter;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
@@ -163,9 +165,7 @@ public class FitManager {
             return paymentCheck;
         }
 
-        LocalDate startDate = LocalDate.parse(
-                startDateStr.trim(),
-                DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        LocalDate startDate = DateFormatter.parseDate(startDateStr);
 
         Student student = (Student) studentResult.getData();
         Plan plan = (Plan) planResult.getData();
@@ -285,7 +285,7 @@ public class FitManager {
                 "Planos Disponíveis: " + totalPlans + "\n" +
                 "Total de Matrículas: " + totalEnrollments + "\n" +
                 "Matrículas Ativas: " + totalActiveEnrollments + "\n" +
-                "Saldo Pendente Total: R$ " + String.format("%.2f", totalBalance);
+                "Saldo Pendente Total: " + CurrencyFormatter.formatCurrency(totalBalance);
 
         return new OperationResult(true, stats);
     }

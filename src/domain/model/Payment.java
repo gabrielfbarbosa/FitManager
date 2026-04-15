@@ -1,6 +1,8 @@
 package domain.model;
 
 import domain.model.enums.PaymentType;
+import util.CurrencyFormatter;
+import util.DateFormatter;
 
 import java.time.LocalDate;
 
@@ -67,12 +69,10 @@ public class Payment {
         this.description = description;
     }
 
-    @Override
     public String toString() {
         return "Código: " + code + "\n" +
-                "Valor: R$ " + String.format("%.2f", amount) + "\n" +
-                "Data: " + String.format("%02d/%02d/%04d", paymentDate.getDayOfMonth(),
-                paymentDate.getMonthValue(), paymentDate.getYear()) + "\n" +
+                "Valor: " + CurrencyFormatter.formatCurrency(amount) + "\n" +
+                "Data: " + DateFormatter.format(paymentDate) + "\n" +
                 "Tipo: " + paymentType.getLabel() + "\n" +
                 "Descrição: " + description;
     }

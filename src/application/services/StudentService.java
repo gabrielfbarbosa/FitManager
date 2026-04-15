@@ -4,8 +4,9 @@ import application.OperationResult;
 import domain.model.Student;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+
+import util.DateFormatter;
 
 /**
  * Serviço responsável por manter a coleção de alunos em memória
@@ -47,9 +48,7 @@ public class StudentService {
             return new OperationResult(false, "Já existe um aluno cadastrado com este CPF.");
         }
 
-        LocalDate birthDate = LocalDate.parse(
-                birthDateStr.trim(),
-                DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        LocalDate birthDate = DateFormatter.parseDate(birthDateStr);
 
         if (birthDate.isAfter(LocalDate.now())) {
             return new OperationResult(false, "A data de nascimento não pode ser uma data futura.");

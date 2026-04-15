@@ -3,6 +3,7 @@ package application.services;
 import application.OperationResult;
 import domain.model.enums.PlanType;
 import domain.model.Plan;
+import util.CurrencyFormatter;
 
 import java.util.ArrayList;
 
@@ -103,9 +104,9 @@ public class PlanService {
                 double oldPrice = plan.getPricePerMonth();
                 plan.setPricePerMonth(newPrice);
                 return new OperationResult(true,
-                        "✅ Preço do plano \"" + plan.getName() + "\" atualizado de R$ " +
-                                String.format("%.2f", oldPrice) + " para R$ " +
-                                String.format("%.2f", newPrice) + ".", plan);
+                        "✅ Preço do plano \"" + plan.getName() + "\" atualizado de " +
+                                CurrencyFormatter.formatCurrency(oldPrice) + " para " +
+                                CurrencyFormatter.formatCurrency(newPrice) + ".", plan);
             }
         }
 
