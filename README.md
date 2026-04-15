@@ -57,26 +57,29 @@ FitManager/
 │   │           └── EnrollmentStatus.java
 │   ├── mocks/
 │   │   └── DataMock.java               # Dados de demonstração para testes
-│   └── ui/
-│       ├── menus/
-│       │   ├── main/
-│       │   │   ├── MainMenu.java
-│       │   │   └── MainMenuOption.java
-│       │   ├── student/
-│       │   │   ├── StudentMenu.java
-│       │   │   └── StudentMenuOption.java
-│       │   ├── plan/
-│       │   │   ├── PlanMenu.java
-│       │   │   └── PlanMenuOption.java
-│       │   ├── enrollment/
-│       │   │   ├── EnrollmentMenu.java
-│       │   │   └── EnrollmentMenuOption.java
-│       │   └── reports/
-│       │       ├── ReportsMenu.java
-│       │       └── ReportsMenuOption.java
-│       └── screen/
-│           ├── UserInterface.java      # Toda a I/O do sistema
-│           └── InputParser.java        # Validação e conversão de entradas
+│   ├── ui/
+│   │   ├── menus/
+│   │   │   ├── main/
+│   │   │   │   ├── MainMenu.java
+│   │   │   │   └── MainMenuOption.java
+│   │   │   ├── student/
+│   │   │   │   ├── StudentMenu.java
+│   │   │   │   └── StudentMenuOption.java
+│   │   │   ├── plan/
+│   │   │   │   ├── PlanMenu.java
+│   │   │   │   └── PlanMenuOption.java
+│   │   │   ├── enrollment/
+│   │   │   │   ├── EnrollmentMenu.java
+│   │   │   │   └── EnrollmentMenuOption.java
+│   │   │   └── reports/
+│   │   │       ├── ReportsMenu.java
+│   │   │       └── ReportsMenuOption.java
+│   │   └── screen/
+│   │       ├── UserInterface.java      # Toda a I/O do sistema
+│   │       └── InputParser.java        # Validação e conversão de entradas
+│   └── util/
+│       ├── CurrencyFormatter.java      # Formatação de valores em BRL (R$ 1.234,56)
+│       └── DateFormatter.java          # Formatação de datas/horas no padrão BR (dd/MM/yyyy)
 ├── report.md
 ├── diagram.png
 └── README.md
@@ -106,3 +109,4 @@ FitManager/
 - 📋 **Gestão de planos** — cadastro, consulta por nome, atualização de preço e listagem
 - 📝 **Gestão de matrículas** — realização, registro de pagamentos, cancelamento, consulta e histórico
 - 📊 **Relatórios** — alunos com matrícula ativa, matrículas com saldo pendente, todas as matrículas e estatísticas gerais
+

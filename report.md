@@ -29,6 +29,7 @@ O diagrama final encontra-se no arquivo `diagram.png` na raiz do repositório. E
 - Método `getMonthsRemaining()` em `Enrollment` — utilitário para relatórios de vencimento.
 - Método `isExpired()` em `Enrollment` — utilitário para detecção de matrículas vencidas.
 - Classe `InputParser` em `ui.screen` — utilitário estático de parsing seguro (sem exceções não tratadas).
+- Pacote `util` com as classes `CurrencyFormatter` e `DateFormatter` — utilitários estáticos para formatação de valores monetários (BRL) e de datas/horas no padrão brasileiro.
 
 Essas adições foram feitas por necessidade das funcionalidades implementadas e são descritas nas decisões de projeto abaixo.
 
@@ -206,7 +207,24 @@ Operações com efeito puramente confirmatório (ex.: `cancelEnrollment`, `remov
 
 **Justificativa:** `totalPrice` já garante a imutabilidade histórica exigida pelo enunciado ("alterações no preço não afetam matrículas registradas"). Um histórico de preços completo exigiria outra entidade (`PlanPriceHistory`) — complexidade desproporcional ao valor agregado nesta etapa.
 
-### 4.21 Comentários e evolução futura
+### 4.21 Formatação de valores monetários e datas (pacote `util`)
+
+**Decisão:** centralizar toda formatação de valores em BRL e de datas/horas em duas classes estáticas — `util.CurrencyFormatter` e `util.DateFormatter` — baseadas em `java.text.NumberFormat` e `java.time.format.DateTimeFormatter` com `Locale("pt","BR")`.
+
+**Motivação:** a versão inicial do projeto usava `String.format("%.2f", valor)` para valores monetários e `String.format("%02d/%02d/%04d", ...)` para datas, replicados em 8+ lugares diferentes. Esse padrão apresentava dois problemas: (1) `%.2f` respeita o Locale do sistema, mas não acrescenta o separador de milhar — o `getSystemStatistics()`, por exemplo, imprimia `R$ 2596,50` em vez do esperado `R$ 2.596,50`; (2) a construção manual da data via `getDayOfMonth()/getMonthValue()/getYear()` era verbosa e propensa a inconsistências caso alguém esquecesse o `%02d`.
+
+**Alternativas:** manter `String.format` em cada ponto; usar `DateTimeFormatter.ofPattern("dd/MM/yyyy")` inline em cada `toString()`.
+
+**Justificativa:** `NumberFormat.getNumberInstance(new Locale("pt","BR"))` já aplica ponto como separador de milhar e vírgula como decimal. `DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("pt","BR"))` descreve declarativamente a saída desejada. Encapsular ambos em classes utilitárias garante:
+- **Saída consistente em todo o sistema** — qualquer ajuste de padrão (ex.: trocar para moeda com código `BRL`) ocorre em um único arquivo.
+- **Ponto único de parse** — o método `DateFormatter.parseDate(String)` substitui as chamadas repetidas a `LocalDate.parse(..., DateTimeFormatter.ofPattern("dd/MM/yyyy"))` em `StudentService` e `FitManager`.
+- **API mais legível nos `toString()`** — `DateFormatter.format(startDate)` em vez de três chamadas aninhadas.
+
+`CurrencyFormatter` expõe `formatCurrency(double)`; `DateFormatter` expõe sobrecargas de `format` para `LocalDate`, além de constantes públicas `DATE_PATTERN`, `TIME_PATTERN`, `DATE_TIME_PATTERN` e os respectivos `DateTimeFormatter`.
+
+**Impacto:** todas as classes de domínio que possuem `toString()` com valores monetários ou datas (`Enrollment`, `Student`, `Payment`, `Plan`) passaram a delegar aos utilitários, assim como os menus `EnrollmentMenu` e `ReportsMenu` e os serviços/orquestrador que faziam parse. A pasta `util` foi criada para abrigar estas e futuras classes utilitárias puramente transversais ao domínio.
+
+### 4.22 Comentários e evolução futura
 
 **Política de comentários:** Javadoc para descrever intenção e contexto (por que a decisão foi tomada), nunca para descrever o óbvio do código.
 
@@ -276,6 +294,10 @@ Classe estática com parsing manual (sem `try/catch`) que unifica o tratamento d
 ### 6.5 Tela com rolagem (`showScrollableMessage`)
 
 Adicionada à `UserInterface` para listagens extensas (histórico de matrículas, lista completa de alunos). Mantém a restrição arquitetural — toda I/O continua concentrada na mesma classe.
+
+### 6.6 Pacote `util` — `CurrencyFormatter` e `DateFormatter`
+
+Classes estáticas que centralizam a formatação de valores monetários em reais (`NumberFormat` com `Locale("pt","BR")`) e de datas (`DateTimeFormatter` para `LocalDate`). Substituem as chamadas repetidas a `String.format("%.2f", ...)` e `String.format("%02d/%02d/%04d", ...)` espalhadas pelo projeto, garantindo que valores como `2596.5` sejam sempre exibidos como `R$ 2.596,50` (com separador de milhar) e que datas sigam sempre o padrão `dd/MM/yyyy`. Descritas em detalhes em 4.21.
 
 ---
 
