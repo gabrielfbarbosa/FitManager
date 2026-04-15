@@ -186,7 +186,7 @@ Operações com efeito puramente confirmatório (ex.: `cancelEnrollment`, `remov
 
 ### 4.18 Tratamento de entrada numérica
 
-**Decisão:** classe estática `InputParser` com parsing **sem `try/catch`**, percorrendo caracteres manualmente. Retorna valores sentinela (`Integer.MIN_VALUE`, `Double.NaN`) para entradas inválidas.
+**Decisão:** classe estática `InputParser` com parsing **sem `try/catch`**, percorrendo caracteres manualmente. Retorna valores sentinela constantes definidos na própria classe (`InputParser.INVALID_INT`, representando `-1`, e `InputParser.INVALID_DOUBLE`, representando `-1.0`) para entradas inválidas.
 
 **Alternativas:** `try/catch` em `NumberFormatException` a cada uso.
 

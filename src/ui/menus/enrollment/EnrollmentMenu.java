@@ -83,7 +83,7 @@ public class EnrollmentMenu {
         if (durationStr == null) return;
 
         int durationMonths = InputParser.parseIntSafe(durationStr);
-        if (durationMonths == Integer.MIN_VALUE || durationMonths <= 0) {
+        if (durationMonths == InputParser.INVALID_INT || durationMonths <= 0) {
             ui.showError("A duração deve ser um número positivo.");
             return;
         }
@@ -92,7 +92,7 @@ public class EnrollmentMenu {
         if (initialAmountStr == null) return;
 
         double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
-        if (Double.isNaN(initialAmount) || initialAmount <= 0) {
+        if (initialAmount == InputParser.INVALID_DOUBLE || initialAmount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }
@@ -168,7 +168,7 @@ public class EnrollmentMenu {
         if (codeStr == null) return;
 
         int code = InputParser.parseIntSafe(codeStr);
-        if (code == Integer.MIN_VALUE) {
+        if (code == InputParser.INVALID_INT) {
             ui.showError("Código inválido.");
             return;
         }
@@ -197,7 +197,7 @@ public class EnrollmentMenu {
         if (codeStr == null) return;
 
         int code = InputParser.parseIntSafe(codeStr);
-        if (code == Integer.MIN_VALUE) {
+        if (code == InputParser.INVALID_INT) {
             ui.showError("Código inválido.");
             return;
         }
@@ -206,7 +206,7 @@ public class EnrollmentMenu {
         if (amountStr == null) return;
 
         double amount = InputParser.parseDoubleSafe(amountStr);
-        if (Double.isNaN(amount) || amount <= 0) {
+        if (amount == InputParser.INVALID_DOUBLE || amount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }

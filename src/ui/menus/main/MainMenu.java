@@ -107,6 +107,6 @@ public class MainMenu {
             }
         }
 
-        ui.showMessage("Obrigado por utilizar o FitManager! Até logo.");
+        ui.showMessage("Obrigado por utilizar o FitManager! Até logo. 👋");
     }
 }
