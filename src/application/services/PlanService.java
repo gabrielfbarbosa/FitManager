@@ -2,7 +2,11 @@ package application.services;
 
 import application.OperationResult;
 import domain.model.enums.PlanType;
-import domain.model.Plan;
+import domain.model.plans.Plan;
+import domain.model.plans.MonthlyPlan;
+import domain.model.plans.QuarterlyPlan;
+import domain.model.plans.SemiAnnualPlan;
+import domain.model.plans.AnnualPlan;
 import util.CurrencyFormatter;
 
 import java.util.ArrayList;
@@ -58,12 +62,41 @@ public class PlanService {
             return new OperationResult(false, "Já existe um plano cadastrado com este nome.");
         }
 
-        // Cria e registra o plano
-        Plan plan = new Plan(name.trim(), description.trim(), type, minimumDuration, pricePerMonth);
+        // Instancia a subclasse correta com base no tipo informado.
+        // Este é o ÚNICO ponto do sistema que conhece as subclasses concretas de Plan.
+        Plan plan = createPlanByType(
+            name.trim(),
+            description.trim(),
+            type,
+            minimumDuration,
+            pricePerMonth
+        );
+
         plans.add(plan);
 
         return new OperationResult(true,
                 "✅ Plano \"" + plan.getName() + "\" registrado com sucesso!", plan);
+    }
+
+    /**
+     * Instancia a subclasse correta de Plan com base no PlanType.
+     * Centraliza a decisão de instanciação — nenhuma outra parte do sistema
+     * precisa conhecer as subclasses concretas.
+     */
+    private Plan createPlanByType(
+        String name,
+        String description,
+        PlanType type,
+        int minimumDuration,
+        double pricePerMonth
+    ) {
+        return switch (type) {
+            case MONTHLY -> new MonthlyPlan(name, description, minimumDuration, pricePerMonth);
+            case QUARTERLY -> new QuarterlyPlan(name, description, minimumDuration, pricePerMonth);
+            case SEMI_ANNUAL -> new SemiAnnualPlan(name, description, minimumDuration, pricePerMonth);
+            case ANNUAL -> new AnnualPlan(name, description, minimumDuration, pricePerMonth);
+            default -> new MonthlyPlan(name, description, minimumDuration, pricePerMonth);
+        };
     }
 
     /**

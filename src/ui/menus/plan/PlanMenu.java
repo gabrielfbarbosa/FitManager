@@ -4,7 +4,7 @@ import ui.screen.UserInterface;
 import application.FitManager;
 import application.OperationResult;
 import domain.model.enums.PlanType;
-import domain.model.Plan;
+import domain.model.plans.Plan;
 import ui.screen.InputParser;
 
 import java.util.ArrayList;
@@ -86,7 +86,7 @@ public class PlanMenu {
             return;
         }
 
-        String priceStr = ui.getInput("Digite o preço por mês (ex: 99.90):");
+        String priceStr = ui.getInput("Digite o preço por mês (ex: 99,90):");
         if (priceStr == null) return;
 
         double pricePerMonth = InputParser.parseDoubleSafe(priceStr);
@@ -138,7 +138,7 @@ public class PlanMenu {
         Plan plan = (Plan) findResult.getData();
         ui.showMessage("Plano encontrado:\n\n" + plan.toString());
 
-        String newPriceStr = ui.getInput("Digite o novo preço por mês (ex: 99.90):");
+        String newPriceStr = ui.getInput("Digite o novo preço por mês (ex: 99,90):");
         if (newPriceStr == null) return;
 
         double newPrice = InputParser.parseDoubleSafe(newPriceStr);

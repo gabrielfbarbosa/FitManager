@@ -88,7 +88,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99.90):");
+        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99,90):");
         if (initialAmountStr == null) return;
 
         double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
@@ -202,7 +202,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99.90):");
+        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99,90):");
         if (amountStr == null) return;
 
         double amount = InputParser.parseDoubleSafe(amountStr);

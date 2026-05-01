@@ -1,6 +1,7 @@
 package domain.model;
 
 import domain.model.enums.EnrollmentStatus;
+import domain.model.plans.Plan;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
@@ -15,6 +16,7 @@ public class Enrollment {
     private int code;
     private String studentCpf;
     private String planName;
+    private Plan plan;
     private LocalDate startDate;
     private LocalDate endDate;
     private int durationMonths;
@@ -25,14 +27,15 @@ public class Enrollment {
 
     public Enrollment(
             String studentCpf,
-            String planName,
+            Plan plan,
             LocalDate startDate,
             int durationMonths,
             double totalPrice
     ) {
         this.code = nextCode++;
         this.studentCpf = studentCpf;
-        this.planName = planName;
+        this.plan = plan;
+        this.planName = plan.getName();
         this.startDate = startDate;
         this.durationMonths = durationMonths;
         this.endDate = startDate.plusMonths(durationMonths).minusDays(1);
@@ -115,6 +118,10 @@ public class Enrollment {
         return planName;
     }
 
+    public Plan getPlan() {
+        return plan;
+    }
+
     public LocalDate getStartDate() {
         return startDate;
     }
@@ -143,6 +150,7 @@ public class Enrollment {
         return cancelledAt;
     }
 
+    @Override
     public String toString() {
         return "Código: " + code + "\n" +
                 "CPF: " + studentCpf + "\n" +

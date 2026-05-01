@@ -5,7 +5,7 @@ import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
 import domain.model.Payment;
-import domain.model.Plan;
+import domain.model.plans.Plan;
 import domain.model.Student;
 import util.CurrencyFormatter;
 
@@ -49,7 +49,7 @@ public class EnrollmentService {
 
         Enrollment enrollment = new Enrollment(
                 student.getCpf(),
-                plan.getName(),
+                plan,
                 startDate,
                 durationMonths,
                 totalPrice
@@ -121,21 +121,53 @@ public class EnrollmentService {
 
     /**
      * Cancela uma matrícula ativa.
+     * Calcula a taxa de cancelamento via polimorfismo (plan.getCancellationFee)
+     * ANTES de efetuar o cancelamento, e inclui o resumo financeiro no resultado.
      *
-     * @return OperationResult indicando sucesso ou falha
+     * @return OperationResult com o Enrollment em data (se sucesso)
      */
     public OperationResult cancelEnrollment(int enrollmentCode) {
-        for (Enrollment enrollment : enrollments) {
-            if (enrollment.getCode() == enrollmentCode) {
-                if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
-                    return new OperationResult(false, "Esta matrícula já foi cancelada.");
-                }
-                enrollment.cancel();
-                return new OperationResult(true,
-                        "✅ Matrícula " + enrollmentCode + " cancelada com sucesso.");
-            }
+        Enrollment enrollment = findByCode(enrollmentCode);
+        if (enrollment == null) {
+            return new OperationResult(false, "Matrícula não encontrada.");
         }
-        return new OperationResult(false, "Matrícula não encontrada.");
+
+        if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
+            return new OperationResult(false, "Esta matrícula já foi cancelada.");
+        }
+
+        // Calcula taxa de cancelamento ANTES de cancelar (polimorfismo)
+        double cancellationFee = enrollment.getPlan().getCancellationFee(enrollment);
+
+        // Coleta informações financeiras antes do cancelamento
+        double totalPrice = enrollment.getTotalPrice();
+        double totalPaid = totalPrice - enrollment.calculateBalance();
+        double pendingBalance = enrollment.calculateBalance();
+
+        // Efetua o cancelamento
+        enrollment.cancel();
+
+        // Monta resumo financeiro do cancelamento
+        String message = "✅ Matrícula " + enrollmentCode + " cancelada com sucesso!\n\n" +
+                "RESUMO FINANCEIRO DO CANCELAMENTO\n" +
+                "Valor total contratado: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
+                "Total já pago: " + CurrencyFormatter.formatCurrency(totalPaid) + "\n";
+
+        if (pendingBalance > 0) {
+            message += "Saldo pendente: " + CurrencyFormatter.formatCurrency(pendingBalance) + "\n";
+        } else if (pendingBalance < 0) {
+            message += "Crédito do aluno: " + CurrencyFormatter.formatCurrency(Math.abs(pendingBalance)) + "\n";
+        } else {
+            message += "Saldo: quitado\n";
+        }
+
+        if (cancellationFee > 0) {
+            message += "\nTaxa de cancelamento: " + CurrencyFormatter.formatCurrency(cancellationFee) +
+                    "\nMotivo: cancelamento antes da metade do período contratado (" +
+                    enrollment.getPlan().getTypeName() + ")";
+        }
+
+        return new OperationResult(true, message, enrollment);
     }
 
     /**
