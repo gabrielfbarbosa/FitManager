@@ -1,10 +1,22 @@
-package domain.model;
+package domain.model.plans;
 
+import domain.model.Enrollment;
 import domain.model.enums.PlanType;
 import util.CurrencyFormatter;
 
-public class Plan {
-    private static final double DISCOUNT_RATE = 0.10; // 10% de desconto nos meses excedentes
+/**
+ * Superclasse abstrata que representa um plano da academia.
+ *
+ * Define os atributos comuns a todos os planos (nome, descrição, tipo,
+ * duração mínima, preço por mês) e declara os métodos abstratos que
+ * cada subclasse deve implementar com sua própria lógica:
+ * - calculateTotalPrice: regra de desconto específica por tipo
+ * - getCancellationFee: taxa de cancelamento específica por tipo
+ *
+ * Não pode ser instanciada diretamente — use as subclasses concretas:
+ * MonthlyPlan, QuarterlyPlan, SemiAnnualPlan, AnnualPlan.
+ */
+public abstract class Plan {
 
     private String name;
     private String description;
@@ -12,7 +24,7 @@ public class Plan {
     private int minimumDuration; // em meses
     private double pricePerMonth;
 
-    public Plan(
+    protected Plan(
             String name,
             String description,
             PlanType type,
@@ -27,36 +39,39 @@ public class Plan {
     }
 
     // ========================
-    // Métodos de negócio
+    // Métodos abstratos
     // ========================
 
     /**
      * Calcula o preço total para uma determinada quantidade de meses.
-     * Aplica desconto de 10% nos meses que excedem a duração mínima do plano.
+     * Cada subclasse implementa sua própria regra de desconto.
      *
-     * Exemplo: Plano mensal (min. 1 mês, R$100/mês) contratado por 12 meses:
-     * 1 × R$100 + 11 × R$90 = R$1.090,00
-     *
-     * @param months quantidade de meses contratados
-     * @return valor total calculado
+     * @param months quantidade de meses contratados (deve ser >= minimumDuration)
+     * @return valor total calculado com desconto aplicado (se houver)
      */
-    public double calculateTotalPrice(int months) {
-        if (months <= 0) {
-            return 0;
-        }
+    public abstract double calculateTotalPrice(int months);
 
-        if (months <= minimumDuration) {
-            return months * pricePerMonth;
-        }
+    /**
+     * Calcula a taxa de cancelamento para uma matrícula.
+     * Cada subclasse define se aplica taxa e em quais condições.
+     *
+     * @param enrollment a matrícula sendo cancelada
+     * @return valor da taxa de cancelamento (0.0 se não aplicável)
+     */
+    public abstract double getCancellationFee(Enrollment enrollment);
 
-        // Meses dentro da duração mínima: preço cheio
-        double basePart = minimumDuration * pricePerMonth;
-        // Meses excedentes: preço com desconto
-        int extraMonths = months - minimumDuration;
-        double discountedPrice = pricePerMonth * (1 - DISCOUNT_RATE);
-        double extraPart = extraMonths * discountedPrice;
+    // ========================
+    // Métodos concretos
+    // ========================
 
-        return basePart + extraPart;
+    /**
+     * Retorna o nome amigável do tipo de plano para exibição ao usuário.
+     * Utilizado em listagens e relatórios sem necessidade de instanceof.
+     *
+     * @return label do tipo de plano (ex: "Mensal", "Trimestral")
+     */
+    public String getTypeName() {
+        return type.getLabel();
     }
 
     // ========================
@@ -83,10 +98,6 @@ public class Plan {
         return type;
     }
 
-    public void setType(PlanType type) {
-        this.type = type;
-    }
-
     public int getMinimumDuration() {
         return minimumDuration;
     }
@@ -103,6 +114,7 @@ public class Plan {
         this.pricePerMonth = pricePerMonth;
     }
 
+    @Override
     public String toString() {
         return "Nome: " + name + "\n" +
                 "Descrição: " + description + "\n" +

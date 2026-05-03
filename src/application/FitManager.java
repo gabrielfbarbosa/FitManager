@@ -3,9 +3,10 @@ package application;
 import application.services.StudentService;
 import application.services.PlanService;
 import application.services.EnrollmentService;
+import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PlanType;
 import domain.model.enums.PaymentType;
-import domain.model.Plan;
+import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
 import util.CurrencyFormatter;
@@ -267,7 +268,7 @@ public class FitManager {
             ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) allEnrollments.getData();
             totalEnrollments = enrollments.size();
             for (Enrollment enrollment : enrollments) {
-                if (enrollment.getStatus().toString().equals("Ativa")) {
+                if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                     totalActiveEnrollments++;
                 }
                 totalBalance += enrollment.calculateBalance();
