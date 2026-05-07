@@ -6,7 +6,7 @@ import util.DateFormatter;
 
 import java.time.LocalDate;
 
-public class Payment {
+public abstract class Payment {
 
     private static int nextCode = 1;
 
@@ -16,7 +16,7 @@ public class Payment {
     private PaymentType paymentType;
     private String description;
 
-    public Payment(
+    protected Payment(
             double amount,
             LocalDate paymentDate,
             PaymentType paymentType,
@@ -30,7 +30,52 @@ public class Payment {
     }
 
     // ========================
-    // Getters e Setters
+    // Métodos abstratos
+    // ========================
+
+    /**
+     * Retorna a taxa de processamento deste meio de pagamento.
+     * Política: absorção pela academia — o aluno paga o valor nominal,
+     * mas o valor efetivamente creditado é (amount - fee).
+     *
+     * @return valor da taxa de processamento (0.0 se não aplicável)
+     */
+    public abstract double getProcessingFee();
+
+    /**
+     * Retorna um resumo textual do pagamento com as informações
+     * relevantes para o tipo específico.
+     *
+     * @return String formatada com os dados do pagamento
+     */
+    public abstract String getPaymentSummary();
+
+    // ========================
+    // Métodos concretos
+    // ========================
+
+    /**
+     * Retorna o valor efetivamente creditado na matrícula,
+     * descontando a taxa de processamento (absorvida pela academia).
+     *
+     * @return amount - getProcessingFee()
+     */
+    public double getEffectiveAmount() {
+        return amount - getProcessingFee();
+    }
+
+    /**
+     * Retorna o nome amigável do tipo de pagamento para exibição.
+     * Utilizado em listagens e relatórios sem necessidade de instanceof.
+     *
+     * @return label do tipo de pagamento (ex: "PIX", "Cartão de Crédito")
+     */
+    public String getTypeName(){
+        return paymentType.getLabel();
+    }
+
+    // ========================
+    // Getters
     // ========================
 
     public int getCode() {
@@ -41,32 +86,17 @@ public class Payment {
         return amount;
     }
 
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
-
     public LocalDate getPaymentDate() {
         return paymentDate;
-    }
-
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
     }
 
     public PaymentType getPaymentType() {
         return paymentType;
     }
 
-    public void setPaymentType(PaymentType paymentType) {
-        this.paymentType = paymentType;
-    }
 
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String toString() {
