@@ -138,10 +138,13 @@ public class FitManager {
 
     /**
      * Realiza a matrícula de um aluno em um plano.
+     *
+     * @param paymentData dados adicionais do pagamento (variam por tipo)
      */
     public OperationResult enrollStudent(String cpf, String planName, String startDateStr,
                                          int durationMonths, double initialAmount,
-                                         PaymentType paymentType, String paymentDescription) {
+                                         PaymentType paymentType, String paymentDescription,
+                                         String[] paymentData) {
 
         String cleanCpf = Student.cleanCpf(cpf);
 
@@ -161,30 +164,12 @@ public class FitManager {
                             + "Cancele a matrícula atual antes de realizar uma nova.");
         }
 
-        OperationResult paymentCheck = validateInitialPayment(initialAmount, paymentType);
-        if (!paymentCheck.isSuccess()) {
-            return paymentCheck;
-        }
-
         LocalDate startDate = DateFormatter.parseDate(startDateStr);
 
         Student student = (Student) studentResult.getData();
         Plan plan = (Plan) planResult.getData();
         return enrollmentService.enroll(student, plan, startDate, durationMonths,
-                initialAmount, paymentType, paymentDescription);
-    }
-
-    /**
-     * Valida o valor e o tipo do pagamento inicial de uma matrícula.
-     */
-    private OperationResult validateInitialPayment(double initialAmount, PaymentType paymentType) {
-        if (initialAmount <= 0) {
-            return new OperationResult(false, "O valor do pagamento inicial deve ser positivo.");
-        }
-        if (paymentType == null) {
-            return new OperationResult(false, "O tipo de pagamento é obrigatório.");
-        }
-        return new OperationResult(true, "ok");
+                initialAmount, paymentType, paymentDescription, paymentData);
     }
 
     /**
@@ -212,14 +197,17 @@ public class FitManager {
 
     /**
      * Registra um novo pagamento para uma matrícula.
+     *
+     * @param paymentData dados adicionais do pagamento (variam por tipo)
      */
     public OperationResult registerPayment(
             int enrollmentCode,
             double amount,
             PaymentType paymentType,
-            String description
+            String description,
+            String[] paymentData
     ) {
-        return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description);
+        return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description, paymentData);
     }
 
     // ============================

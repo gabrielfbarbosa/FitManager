@@ -4,7 +4,11 @@ import application.OperationResult;
 import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
-import domain.model.Payment;
+import domain.model.payments.Payment;
+import domain.model.payments.PixPayment;
+import domain.model.payments.CashPayment;
+import domain.model.payments.CreditCardPayment;
+import domain.model.payments.DebitCardPayment;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import util.CurrencyFormatter;
@@ -26,8 +30,13 @@ public class EnrollmentService {
 
     /**
      * Realiza a matrícula de um aluno em um plano.
-     * Cria um Enrollment e registra um pagamento inicial.
+     * Cria um Enrollment e registra um pagamento inicial usando a subclasse correta
      *
+     * @param paymentData dados adicionais do pagamento (variam por tipo):
+     *                    PIX: [pixKey]
+     *                    CREDIT_CARD: [installments, cardLastDigits]
+     *                    DEBIT_CARD: [cardLastDigits]
+     *                    CASH: [amountReceived]
      * @return OperationResult com o Enrollment criado em data (se sucesso)
      */
     public OperationResult enroll(
@@ -37,12 +46,18 @@ public class EnrollmentService {
             int durationMonths,
             double initialAmount,
             PaymentType paymentType,
-            String paymentDescription
+            String paymentDescription,
+            String[] paymentData
     ) {
         OperationResult validationResult = validateEnrollmentParams(
                 student, plan, startDate, durationMonths);
         if (!validationResult.isSuccess()) {
             return validationResult;
+        }
+
+        OperationResult paymentValidation = validatePaymentParams(initialAmount, paymentType, paymentData);
+        if (!paymentValidation.isSuccess()) {
+            return paymentValidation;
         }
 
         double totalPrice = plan.calculateTotalPrice(durationMonths);
@@ -56,11 +71,12 @@ public class EnrollmentService {
         );
 
         // Cria pagamento inicial
-        Payment initialPayment = buildPayment(
+        Payment initialPayment = createPaymentByType(
                 initialAmount,
                 LocalDate.now(),
                 paymentType,
-                paymentDescription
+                paymentDescription,
+                paymentData
         );
         enrollment.addPayment(initialPayment);
 
@@ -69,10 +85,11 @@ public class EnrollmentService {
         String message = "✅ Matrícula realizada com sucesso!\n\n" +
                 "Código: " + enrollment.getCode() + "\n" +
                 "Aluno: " + student.getName() + "\n" +
-                "Plano: " + plan.getName() + "\n" +
+                "Plano: " + plan.getName() + " (" + plan.getTypeName() + ")\n" +
                 "Preço Total: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
                 "Pagamento Inicial: " + CurrencyFormatter.formatCurrency(initialAmount) + "\n" +
-                "Saldo Pendente: " + CurrencyFormatter.formatCurrency(totalPrice - initialAmount);
+                "Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance()) + "\n\n" +
+                initialPayment.getPaymentSummary();
 
         return new OperationResult(true, message, enrollment);
     }
@@ -107,16 +124,46 @@ public class EnrollmentService {
     }
 
     /**
-     * Cria um objeto Payment com os parâmetros fornecidos.
-     * Usado durante a matrícula para criar o pagamento inicial.
+     * Instancia a subclasse correta de Payment com base no PaymentType
+     * Este é o ÚNICO ponto do sistema que conhece as subclasse concretas de Payment.
+     *
+     * @param paymentData dados adicionais específicos do tipo:
+     *                    PIX: [pixKey]
+     *                    CREDIT_CARD: [installments, cardLastDigits]
+     *                    DEBIT_CARD: [cardLastDigits]
+     *                    CASH: [amountReceived]
      */
-    private Payment buildPayment(
+    private Payment createPaymentByType(
             double amount,
             LocalDate paymentDate,
             PaymentType paymentType,
-            String description
+            String description,
+            String[] paymentData
     ) {
-        return new Payment(amount, paymentDate, paymentType, description);
+        switch (paymentType) {
+            case PIX:
+                String pixKey = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "");
+                return new PixPayment(amount, paymentDate, description, pixKey);
+            case CREDIT_CARD:
+                int installments = 1;
+                String creditDigits = "0000";
+                if(paymentData != null && paymentData.length >= 2) {
+                    installments = Integer.parseInt(paymentData[0]);
+                     creditDigits = paymentData[1];
+                }
+                return new CreditCardPayment(amount, paymentDate, description, installments, creditDigits);
+            case DEBIT_CARD:
+                String debitDigits = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "0000");
+                return new DebitCardPayment(amount, paymentDate, description, debitDigits);
+            case CASH:
+                double amountReceived = amount;
+                if(paymentData != null && paymentData.length > 0) {
+                    amount = Double.parseDouble(paymentData[0].replace(",", "."));
+                }
+                return new CashPayment(amount, paymentDate, description, amountReceived);
+            default:
+                return new PixPayment(amount, paymentDate, description, "");
+        }
     }
 
     /**
@@ -235,17 +282,19 @@ public class EnrollmentService {
 
     /**
      * Registra um novo pagamento para uma matrícula.
-     * O pagamento é validado e então adicionado à matrícula.
+     * Instancia a subclasse correta com o Payment e exibe o resumo via getPaymentSummary().
      *
-     * @return OperationResult indicando sucesso ou falha
+     * @param paymentData dados adicionais específicos do tipo de pagamento
+     * @return OperationResult com o Payment criado em data (se sucesso)
      */
     public OperationResult registerPayment(
             int enrollmentCode,
             double amount,
             PaymentType paymentType,
-            String description
+            String description,
+            String[] paymentData
     ) {
-        OperationResult validationResult = validatePaymentParams(amount, paymentType);
+        OperationResult validationResult = validatePaymentParams(amount, paymentType, paymentData);
         if (!validationResult.isSuccess()) {
             return validationResult;
         }
@@ -259,34 +308,41 @@ public class EnrollmentService {
             return new OperationResult(false, "Não é possível registrar pagamento em matrícula cancelada.");
         }
 
-        double remainingBalance = enrollment.calculateBalance();
-        if (amount > remainingBalance) {
-            return new OperationResult(false,
-                    "O valor do pagamento (" + CurrencyFormatter.formatCurrency(amount) +
-                            ") excede o saldo pendente (" + CurrencyFormatter.formatCurrency(remainingBalance) + ").");
-        }
+        Payment payment = createPaymentByType(amount, LocalDate.now(), paymentType, description, paymentData);
 
-        Payment payment = buildPayment(amount, LocalDate.now(), paymentType, description);
         enrollment.addPayment(payment);
 
+        double totalPaid = enrollment.getTotalPrice() - enrollment.calculateBalance();
         String message = "✅ Pagamento registrado com sucesso!\n\n" +
-                "Código do Pagamento: " + payment.getCode() + "\n" +
-                "Valor: " + CurrencyFormatter.formatCurrency(amount) + "\n" +
-                "Tipo: " + paymentType.getLabel() + "\n" +
-                "Novo Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance());
+                payment.getPaymentSummary() + "\n\n" +
+                "Total pago até o momento " + CurrencyFormatter.formatCurrency(totalPaid) + "\n" +
+                "Saldo restante " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance());
 
         return new OperationResult(true, message, payment);
     }
 
     /**
      * Valida os parâmetros de um pagamento.
+     * Inclui validação genérica (amount > 0, tipo não nulo) e
+     * validação específica para pagamento em dinheiro (amountReceived >= amount).
+     *
+     * Centraliza a verificação para evitar duplicação entre enroll() e registerPayment().
      */
-    private OperationResult validatePaymentParams(double amount, PaymentType paymentType) {
+    private OperationResult validatePaymentParams(double amount, PaymentType paymentType, String[] paymentData) {
         if (amount <= 0) {
             return new OperationResult(false, "O valor do pagamento deve ser positivo.");
         }
         if (paymentType == null) {
             return new OperationResult(false, "O tipo de pagamento é obrigatório.");
+        }
+
+        //Validação específica para CashPayment: valor recebido >= valor do pagamento
+        if (paymentType == PaymentType.CASH && paymentData != null && paymentData.length > 0) {
+            double amountReceveid = Double.parseDouble(paymentData[0].replace(",", "."));
+            if(amountReceveid <= amount) {
+                return new OperationResult(false,"O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceveid) +
+                        ") deve ser maior ou igual ao valor do pagamento ("+CurrencyFormatter.formatCurrency(amount) + ").");
+            }
         }
         return new OperationResult(true, "ok");
     }

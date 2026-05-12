@@ -103,8 +103,11 @@ public class EnrollmentMenu {
         String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
 
+        String[] paymentData = collectPaymentData(paymentType, initialAmount);
+        if (paymentData == null) return;
+
         OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
-                durationMonths, initialAmount, paymentType, paymentDescription);
+                durationMonths, initialAmount, paymentType, paymentDescription, paymentData);
 
         if (result.isSuccess()) {
             Enrollment enrollment = (Enrollment) result.getData();
@@ -217,7 +220,10 @@ public class EnrollmentMenu {
         String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (description == null) description = "Pagamento adicional";
 
-        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description);
+        String[] paymentData = collectPaymentData(paymentType, amount);
+        if (paymentData == null) return;
+
+        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -253,6 +259,46 @@ public class EnrollmentMenu {
             } else {
                 ui.showError("Opção inválida. Escolha de 1 a " + PaymentType.values().length + ".");
             }
+        }
+    }
+
+    /**
+     * Coleta dados adicionais específicos do tipo de pagamento.
+     */
+    private String[] collectPaymentData(PaymentType paymentType, double amount) {
+        switch (paymentType) {
+            case PIX:
+                String pixKey = ui.getInput("Digite a chave PIX:");
+                if (pixKey == null) return null;
+                return new String[]{pixKey};
+
+            case CREDIT_CARD:
+                String installmentsStr = ui.getInput("Digite a quantidade de parcelas:");
+                if (installmentsStr == null) return null;
+                int installments = InputParser.parseIntSafe(installmentsStr);
+                if (installments == InputParser.INVALID_INT || installments <= 0) {
+                    ui.showError("Número de parcelas inválido.");
+                    return null;
+                }
+
+                String creditDigits = ui.getInput("Digite os 4 últimos dígitos do cartão:");
+                if (creditDigits == null) return null;
+                return new String[]{String.valueOf(installments), creditDigits};
+
+            case DEBIT_CARD:
+                String debitDigits = ui.getInput("Digite os 4 últimos dígitos do cartão:");
+                if (debitDigits == null) return null;
+                return new String[]{debitDigits};
+
+            case CASH:
+                String receivedStr = ui.getInput(
+                        "Digite o valor recebido em dinheiro (>= " + CurrencyFormatter.formatCurrency(amount) + "):"
+                );
+                if (receivedStr == null) return null;
+                return new String[]{receivedStr};
+
+            default:
+                return new String[0];
         }
     }
 

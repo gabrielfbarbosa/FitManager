@@ -188,12 +188,13 @@ public class DataMock {
                 12,
                 69.90,
                 PaymentType.PIX,
-                "1ª parcela — abril"
+                "1ª parcela — abril",
+                new String[]{"carlos.silva@email.com"}
         );
         if (r1.isSuccess()) {
             int code = ((Enrollment) r1.getData()).getCode();
-            fm.registerPayment(code, 69.90, PaymentType.PIX,        "2ª parcela — maio");
-            fm.registerPayment(code, 69.90, PaymentType.DEBIT_CARD, "3ª parcela — junho");
+            fm.registerPayment(code, 69.90, PaymentType.PIX,        "2ª parcela — maio", new String[]{"carlos.silva@email.com"});
+            fm.registerPayment(code, 69.90, PaymentType.DEBIT_CARD, "3ª parcela — junho", new String[]{"4321"});
         }
 
         // Matrícula 2 — Ana / ativa / saldo pendente
@@ -204,7 +205,8 @@ public class DataMock {
                 1,
                 50.00,
                 PaymentType.CASH,
-                "Entrada parcial"
+                "Entrada parcial",
+                new String[]{"50,00"}
         );
 
         // Matrícula 3 — Bruno / ativa / quitada
@@ -215,12 +217,13 @@ public class DataMock {
                 3,
                 89.90,
                 PaymentType.CREDIT_CARD,
-                "1ª parcela"
+                "1ª parcela",
+                new String[]{"1", "5678"}
         );
         if (r3.isSuccess()) {
             int code = ((Enrollment) r3.getData()).getCode();
-            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "2ª parcela");
-            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "3ª parcela — quitado");
+            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "2ª parcela", new String[]{"1", "5678"});
+            fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "3ª parcela — quitado", new String[]{"1", "5678"});
         }
 
         // Matrícula 4 — Fernanda / cancelada
@@ -231,7 +234,8 @@ public class DataMock {
                 6,
                 79.90,
                 PaymentType.PIX,
-                "Pagamento inicial"
+                "Pagamento inicial",
+                new String[]{"fernanda.souza@email.com"}
         );
         if (r4.isSuccess()) {
             fm.cancelEnrollment(((Enrollment) r4.getData()).getCode());
@@ -245,7 +249,8 @@ public class DataMock {
                 1,
                 99.90,
                 PaymentType.PIX,
-                "Pagamento inicial"
+                "Pagamento inicial",
+                new String[]{"juliana.lima@email.com"}
         );
         if (r5.isSuccess()) {
             fm.cancelEnrollment(((Enrollment) r5.getData()).getCode());
@@ -260,7 +265,8 @@ public class DataMock {
                 3,
                 89.90,
                 PaymentType.CREDIT_CARD,
-                "Nova matrícula após cancelamento anterior"
+                "Nova matrícula após cancelamento anterior",
+                new String[]{"1", "5678"}
         );
 
         // Patrícia / Plano Semestral / ativa / 3 de 6 parcelas pagas
@@ -271,12 +277,13 @@ public class DataMock {
                 6,
                 79.90,
                 PaymentType.PIX,
-                "1ª parcela — abril"
+                "1ª parcela — abril",
+                new String[]{"patricia.santos@email.com"}
         );
         if (r7.isSuccess()) {
             int code = ((Enrollment) r7.getData()).getCode();
-            fm.registerPayment(code, 79.90, PaymentType.PIX,         "2ª parcela — maio");
-            fm.registerPayment(code, 79.90, PaymentType.DEBIT_CARD,  "3ª parcela — junho");
+            fm.registerPayment(code, 79.90, PaymentType.PIX,         "2ª parcela — maio", new String[]{"patricia.santos@email.com"});
+            fm.registerPayment(code, 79.90, PaymentType.DEBIT_CARD,  "3ª parcela — junho", new String[]{"4321"});
         }
 
         // Lucas / Plano Mensal / ativa / totalmente quitada
@@ -287,7 +294,8 @@ public class DataMock {
                 1,
                 99.90,
                 PaymentType.CREDIT_CARD,
-                "Pagamento integral"
+                "Pagamento integral",
+                new String[]{"1", "5678"}
         );
 
         // Mariana / 1ª matrícula (Plano Trimestral) → cancelada
@@ -298,7 +306,8 @@ public class DataMock {
                 3,
                 89.90,
                 PaymentType.CASH,
-                "1ª parcela"
+                "1ª parcela",
+                new String[]{"100,00"}
         );
         if (r9.isSuccess()) {
             int code = ((Enrollment) r9.getData()).getCode();
@@ -313,11 +322,12 @@ public class DataMock {
                 12,
                 69.90,
                 PaymentType.PIX,
-                "1ª parcela — nova matrícula após cancelamento"
+                "1ª parcela — nova matrícula após cancelamento",
+                new String[]{"mariana.oliveira@email.com"}
         );
         if (r10.isSuccess()) {
             int code = ((Enrollment) r10.getData()).getCode();
-            fm.registerPayment(code, 69.90, PaymentType.PIX, "2ª parcela");
+            fm.registerPayment(code, 69.90, PaymentType.PIX, "2ª parcela", new String[]{"mariana.oliveira@email.com"});
         }
 
         // Letícia / Plano Trimestral / ativa / entrada simbólica (saldo pendente alto)
@@ -328,7 +338,8 @@ public class DataMock {
                 3,
                 50.00,
                 PaymentType.CASH,
-                "Entrada parcial"
+                "Entrada parcial",
+                new String[]{"50,00"}
         );
     }
 
