@@ -1,4 +1,4 @@
-package domain.model;
+package domain.model.payments;
 
 import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;

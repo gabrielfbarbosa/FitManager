@@ -1,6 +1,5 @@
 package domain.model.payments;
 
-import domain.model.Payment;
 import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;

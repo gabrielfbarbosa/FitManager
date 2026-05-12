@@ -1,6 +1,7 @@
 package domain.model;
 
 import domain.model.enums.EnrollmentStatus;
+import domain.model.payments.Payment;
 import domain.model.plans.Plan;
 import util.CurrencyFormatter;
 import util.DateFormatter;

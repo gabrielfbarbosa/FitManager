@@ -4,7 +4,7 @@ import application.OperationResult;
 import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
-import domain.model.Payment;
+import domain.model.payments.Payment;
 import domain.model.payments.PixPayment;
 import domain.model.payments.CashPayment;
 import domain.model.payments.CreditCardPayment;
@@ -55,6 +55,11 @@ public class EnrollmentService {
             return validationResult;
         }
 
+        OperationResult paymentValidation = validatePaymentParams(initialAmount, paymentType, paymentData);
+        if (!paymentValidation.isSuccess()) {
+            return paymentValidation;
+        }
+
         double totalPrice = plan.calculateTotalPrice(durationMonths);
 
         Enrollment enrollment = new Enrollment(
@@ -80,7 +85,7 @@ public class EnrollmentService {
         String message = "✅ Matrícula realizada com sucesso!\n\n" +
                 "Código: " + enrollment.getCode() + "\n" +
                 "Aluno: " + student.getName() + "\n" +
-                "Plano: " + plan.getName() + "\n" +
+                "Plano: " + plan.getName() + " (" + plan.getTypeName() + ")\n" +
                 "Preço Total: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
                 "Pagamento Inicial: " + CurrencyFormatter.formatCurrency(initialAmount) + "\n" +
                 "Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance()) + "\n\n" +
@@ -139,7 +144,6 @@ public class EnrollmentService {
             case PIX:
                 String pixKey = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "");
                 return new PixPayment(amount, paymentDate, description, pixKey);
-
             case CREDIT_CARD:
                 int installments = 1;
                 String creditDigits = "0000";
@@ -148,18 +152,15 @@ public class EnrollmentService {
                      creditDigits = paymentData[1];
                 }
                 return new CreditCardPayment(amount, paymentDate, description, installments, creditDigits);
-
-                case DEBIT_CARD:
-                    String debitDigits = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "0000");
-                    return new DebitCardPayment(amount, paymentDate, description, debitDigits);
-
+            case DEBIT_CARD:
+                String debitDigits = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "0000");
+                return new DebitCardPayment(amount, paymentDate, description, debitDigits);
             case CASH:
                 double amountReceived = amount;
                 if(paymentData != null && paymentData.length > 0) {
                     amount = Double.parseDouble(paymentData[0].replace(",", "."));
                 }
                 return new CashPayment(amount, paymentDate, description, amountReceived);
-
             default:
                 return new PixPayment(amount, paymentDate, description, "");
         }
