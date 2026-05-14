@@ -41,11 +41,7 @@ public class TerminalUI implements UserInterface {
         System.out.println(prompt);
         System.out.print("> ");
 
-        String input = scanner.nextLine().trim();
-        if (input.isEmpty()) {
-            return null;
-        }
-        return input;
+        return scanner.nextLine().trim();
     }
 
     @Override
