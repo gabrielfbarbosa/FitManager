@@ -3,9 +3,8 @@ package ui.screen;
 /**
  * Utilitário estático para validação e conversão de entradas do usuário.
  *
- * Centraliza a lógica de parsing que é usada tanto pela UserInterface
- * (em getIntInput e getDoubleInput) quanto diretamente pelos menus
- * (para validar a seleção de opções antes de chamar parseInt).
+ * Centraliza a lógica de parsing que é usada diretamente pelos menus
+ * para validar e converter entradas do usuário antes de processá-las.
  *
  * Toda validação é feita caractere a caractere, sem regex e sem try/catch.
  * Responsabilidade única: transformar strings brutas de entrada em valores
