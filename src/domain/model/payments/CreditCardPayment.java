@@ -4,7 +4,7 @@ import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Pagamento via cartão de crédito — taxa de processamento de 2,5%.
@@ -20,7 +20,7 @@ public class CreditCardPayment extends Payment {
     private int installments;
     private String cardLastDigits;
 
-    public CreditCardPayment(double amount, LocalDate paymentDate, String description, int installments, String cardLastDigits) {
+    public CreditCardPayment(double amount, LocalDateTime paymentDate, String description, int installments, String cardLastDigits) {
         super(amount, paymentDate, PaymentType.CREDIT_CARD, description);
 
         this.installments = installments;
@@ -36,7 +36,7 @@ public class CreditCardPayment extends Payment {
     public String getPaymentSummary() {
         return "Pagamento #" + getCode() + " — Cartão de Crédito\n" +
                 "Valor: " + CurrencyFormatter.formatCurrency(getAmount()) + "\n" +
-                "Data: " + DateFormatter.format(getPaymentDate()) + "\n" +
+                "Data: " + DateFormatter.formatDateTime(getPaymentDate()) + "\n" +
                 "Cartão: **** **** **** " + cardLastDigits + "\n" +
                 "Parcelas: " + installments + "x de " +
                 CurrencyFormatter.formatCurrency(getAmount() / installments) + "\n" +

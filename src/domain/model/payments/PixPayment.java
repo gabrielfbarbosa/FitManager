@@ -4,7 +4,7 @@ import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Pagamento via PIX — sem taxa de processamento.
@@ -14,7 +14,7 @@ public class PixPayment extends Payment {
 
     private String pixKey;
 
-    public PixPayment(double amount, LocalDate paymentDate, String description, String pixKey) {
+    public PixPayment(double amount, LocalDateTime paymentDate, String description, String pixKey) {
         super(amount, paymentDate, PaymentType.PIX, description);
 
         this.pixKey = pixKey;
@@ -29,7 +29,7 @@ public class PixPayment extends Payment {
     public String getPaymentSummary() {
         return "Pagamento #" + getCode() + " — PIX\n" +
                 "Valor: " + CurrencyFormatter.formatCurrency(getAmount()) + "\n" +
-                "Data: " + DateFormatter.format(getPaymentDate()) + "\n" +
+                "Data: " + DateFormatter.formatDateTime(getPaymentDate()) + "\n" +
                 "Chave PIX: " + pixKey + "\n" +
                 "Descrição: " + getDescription();
     }

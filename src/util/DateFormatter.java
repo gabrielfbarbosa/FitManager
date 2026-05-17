@@ -2,7 +2,6 @@ package util;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -41,9 +40,14 @@ public final class DateFormatter {
      * Formata um {@link LocalDate} como "dd/MM/yyyy".
      * Retorna string vazia se o valor for nulo.
      */
-    public static String format(LocalDate date) {
+    public static String formatDate(LocalDate date) {
         if (date == null) return "";
         return DATE_FORMATTER.format(date);
+    }
+
+    public static String formatDateTime(LocalDateTime date) {
+        if (date == null) return "";
+        return DATE_TIME_FORMATTER.format(date);
     }
 
     /**
