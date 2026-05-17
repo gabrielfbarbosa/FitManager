@@ -6,6 +6,7 @@ import application.services.EnrollmentService;
 import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PlanType;
 import domain.model.enums.PaymentType;
+import domain.model.filters.EnrollmentFilter;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
@@ -213,6 +214,21 @@ public class FitManager {
     // ============================
     // Operações de Relatórios
     // ============================
+
+    /**
+     * Lista matrículas usando um filtro polimórfico.
+     * Delega ao EnrollmentService.listByFilter(), que aplica o critério
+     * do filtro a toda a coleção de matrículas.
+     *
+     * Permite adicionar novos relatórios sem alterar o FitManager —
+     * basta criar uma nova implementação de EnrollmentFilter.
+     *
+     * @param filter filtro polimórfico a ser aplicado
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listEnrollmentsByFilter(EnrollmentFilter filter) {
+        return enrollmentService.listByFilter(filter);
+    }
 
     /**
      * Lista todas as matrículas (ativas e canceladas).

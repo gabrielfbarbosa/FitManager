@@ -3,6 +3,7 @@ package application.services;
 import application.OperationResult;
 import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PaymentType;
+import domain.model.filters.EnrollmentFilter;
 import domain.model.Enrollment;
 import domain.model.payments.Payment;
 import domain.model.payments.PixPayment;
@@ -14,6 +15,7 @@ import domain.model.Student;
 import util.CurrencyFormatter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 /**
@@ -73,7 +75,7 @@ public class EnrollmentService {
         // Cria pagamento inicial
         Payment initialPayment = createPaymentByType(
                 initialAmount,
-                LocalDate.now(),
+                LocalDateTime.now(),
                 paymentType,
                 paymentDescription,
                 paymentData
@@ -135,7 +137,7 @@ public class EnrollmentService {
      */
     private Payment createPaymentByType(
             double amount,
-            LocalDate paymentDate,
+            LocalDateTime paymentDate,
             PaymentType paymentType,
             String description,
             String[] paymentData
@@ -308,7 +310,7 @@ public class EnrollmentService {
             return new OperationResult(false, "Não é possível registrar pagamento em matrícula cancelada.");
         }
 
-        Payment payment = createPaymentByType(amount, LocalDate.now(), paymentType, description, paymentData);
+        Payment payment = createPaymentByType(amount, LocalDateTime.now(), paymentType, description, paymentData);
 
         enrollment.addPayment(payment);
 
@@ -345,6 +347,35 @@ public class EnrollmentService {
             }
         }
         return new OperationResult(true, "ok");
+    }
+
+    /**
+     * Lista matrículas que atendem ao critério de um filtro polimórfico.
+     *
+     * Método genérico que aplica qualquer EnrollmentFilter à coleção,
+     * eliminando a necessidade de criar métodos específicos para cada
+     * tipo de filtragem. Novos filtros podem ser adicionados sem alterar
+     * este serviço (princípio Open/Closed).
+     *
+     * @param filter filtro polimórfico a ser aplicado
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listByFilter(EnrollmentFilter filter) {
+        ArrayList<Enrollment> filtered = new ArrayList<>();
+        for (Enrollment enrollment : enrollments) {
+            if (filter.matches(enrollment)) {
+                filtered.add(enrollment);
+            }
+        }
+
+        if (filtered.isEmpty()) {
+            return new OperationResult(false,
+                    "Nenhuma matrícula encontrada para o filtro: " + filter.getDescription() + ".");
+        }
+
+        return new OperationResult(true,
+                filtered.size() + " matrícula(s) encontrada(s) — " + filter.getDescription() + ".",
+                filtered);
     }
 
     /**
