@@ -1,24 +1,26 @@
 package domain.model.payments;
 
+import domain.model.Summarizable;
 import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-public abstract class Payment {
+public abstract class Payment implements Summarizable {
 
     private static int nextCode = 1;
 
     private int code;
     private double amount;
-    private LocalDate paymentDate;
+    private LocalDateTime paymentDate;
     private PaymentType paymentType;
     private String description;
 
     protected Payment(
             double amount,
-            LocalDate paymentDate,
+            LocalDateTime paymentDate,
             PaymentType paymentType,
             String description
     ) {
@@ -55,6 +57,16 @@ public abstract class Payment {
     // ========================
 
     /**
+     * Retorna um resumo curto do pagamento em uma única linha.
+     * Formato: "Pagamento #X | R$ XX,XX | Tipo | dd/MM/yyyy"
+     */
+    @Override
+    public String getSummary() {
+        return "Pagamento Código: " + code + " | " + CurrencyFormatter.formatCurrency(amount) +
+                " | " + paymentType.getLabel() + " | " + DateFormatter.formatDateTime(paymentDate);
+    }
+
+    /**
      * Retorna o valor efetivamente creditado na matrícula,
      * descontando a taxa de processamento (absorvida pela academia).
      *
@@ -86,7 +98,7 @@ public abstract class Payment {
         return amount;
     }
 
-    public LocalDate getPaymentDate() {
+    public LocalDateTime getPaymentDate() {
         return paymentDate;
     }
 
@@ -102,7 +114,7 @@ public abstract class Payment {
     public String toString() {
         return "Código: " + code + "\n" +
                 "Valor: " + CurrencyFormatter.formatCurrency(amount) + "\n" +
-                "Data: " + DateFormatter.format(paymentDate) + "\n" +
+                "Data: " + DateFormatter.formatDateTime(paymentDate) + "\n" +
                 "Tipo: " + paymentType.getLabel() + "\n" +
                 "Descrição: " + description;
     }

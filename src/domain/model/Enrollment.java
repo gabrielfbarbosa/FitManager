@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 
-public class Enrollment {
+public class Enrollment implements Summarizable {
 
     private static int nextCode = 1;
 
@@ -49,6 +49,17 @@ public class Enrollment {
     // ========================
     // Métodos de negócio
     // ========================
+
+    /**
+     * Retorna um resumo curto da matrícula em uma única linha.
+     * Formato: "Matrícula #X | Plano Y | Status | Saldo: R$ XX,XX"
+     */
+    @Override
+    public String getSummary() {
+        return "Matrícula Código: " + code + " | " + planName + " | " +
+                status.getLabel() + " | Saldo Pendente: " + CurrencyFormatter.formatCurrency(calculateBalance());
+
+    }
 
     /**
      * Adiciona um pagamento à matrícula.
@@ -156,8 +167,8 @@ public class Enrollment {
         return "Código: " + code + "\n" +
                 "CPF: " + studentCpf + "\n" +
                 "Plano: " + planName + "\n" +
-                "Data Início: " + DateFormatter.format(startDate) + "\n" +
-                "Data Fim: " + DateFormatter.format(endDate) + "\n" +
+                "Data Início: " + DateFormatter.formatDate(startDate) + "\n" +
+                "Data Fim: " + DateFormatter.formatDate(endDate) + "\n" +
                 "Duração: " + durationMonths + (durationMonths == 1 ? " mês" : " meses") + "\n" +
                 "Preço Total: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
                 "Saldo Pendente: " + CurrencyFormatter.formatCurrency(calculateBalance()) + "\n" +

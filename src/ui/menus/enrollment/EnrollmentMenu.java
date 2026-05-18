@@ -308,8 +308,8 @@ public class EnrollmentMenu {
     private String buildEnrollmentSummary(Enrollment enrollment) {
         return "Código: " + enrollment.getCode() + "\n" +
                 "Plano: " + enrollment.getPlanName() + "\n" +
-                "Data Início: " + DateFormatter.format(enrollment.getStartDate()) + "\n" +
-                "Data Fim: " + DateFormatter.format(enrollment.getEndDate()) + "\n" +
+                "Data Início: " + DateFormatter.formatDate(enrollment.getStartDate()) + "\n" +
+                "Data Fim: " + DateFormatter.formatDate(enrollment.getEndDate()) + "\n" +
                 "Duração: " + enrollment.getDurationMonths() +
                 (enrollment.getDurationMonths() == 1 ? " mês" : " meses") + "\n" +
                 "Preço Total: " + CurrencyFormatter.formatCurrency(enrollment.getTotalPrice()) + "\n" +

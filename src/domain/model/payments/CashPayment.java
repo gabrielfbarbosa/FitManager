@@ -4,7 +4,7 @@ import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Pagamento em dinheiro — sem taxa de processamento.
@@ -15,7 +15,7 @@ public class CashPayment extends Payment {
 
     private double amountReceived;
 
-    public CashPayment(double amount, LocalDate paymentDate, String description, double amountReceive) {
+    public CashPayment(double amount, LocalDateTime paymentDate, String description, double amountReceive) {
         super(amount, paymentDate, PaymentType.CASH, description);
 
         this.amountReceived = amountReceive;
@@ -39,7 +39,7 @@ public class CashPayment extends Payment {
     public String getPaymentSummary() {
         String summary = "Pagamento #" + getCode() + " — Dinheiro\n" +
                 "Valor: " + CurrencyFormatter.formatCurrency(getAmount()) + "\n" +
-                "Data: " + DateFormatter.format(getPaymentDate()) + "\n" +
+                "Data: " + DateFormatter.formatDateTime(getPaymentDate()) + "\n" +
                 "Valor recebido: " + CurrencyFormatter.formatCurrency(amountReceived) + "\n";
 
         double change = getChange();

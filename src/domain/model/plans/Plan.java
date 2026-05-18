@@ -1,6 +1,7 @@
 package domain.model.plans;
 
 import domain.model.Enrollment;
+import domain.model.Summarizable;
 import domain.model.enums.PlanType;
 import util.CurrencyFormatter;
 
@@ -16,7 +17,7 @@ import util.CurrencyFormatter;
  * Não pode ser instanciada diretamente — use as subclasses concretas:
  * MonthlyPlan, QuarterlyPlan, SemiAnnualPlan, AnnualPlan.
  */
-public abstract class Plan {
+public abstract class Plan implements Summarizable {
 
     private String name;
     private String description;
@@ -63,6 +64,15 @@ public abstract class Plan {
     // ========================
     // Métodos concretos
     // ========================
+
+    /**
+     * Retorna um resumo curto do plano em uma única linha.
+     * Formato: "Nome | Tipo | R$ XX,XX/mês"
+     */
+    @Override
+    public String getSummary() {
+        return name + " | " + type.getLabel() + " | " + CurrencyFormatter.formatCurrency(pricePerMonth) + "/mês";
+    }
 
     /**
      * Retorna o nome amigável do tipo de plano para exibição ao usuário.
