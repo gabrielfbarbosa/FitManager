@@ -5,9 +5,23 @@ import domain.model.enums.PaymentType;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Superclasse abstrata que representa um pagamento do aluno.
+ *
+ * Define os atributos comuns a todos os pagamentos (código, valor, data,
+ * tipo, descrição) e declara os métodos abstratos que cada subclasse
+ * deve implementar com sua própria lógica:
+ * - getProcessingFee: taxa específica por meio de pagamento
+ * - getPaymentSummary: resumo detalhado específico por tipo
+ *
+ * Os códigos são gerados automaticamente de forma sequencial.
+ * A política adotada é a absorção das taxas pela academia.
+ *
+ * Não pode ser instanciada diretamente — use as subclasses concretas:
+ * PixPayment, CreditCardPayment, BankSlipPayment, etc.
+ */
 public abstract class Payment implements Summarizable {
 
     private static int nextCode = 1;

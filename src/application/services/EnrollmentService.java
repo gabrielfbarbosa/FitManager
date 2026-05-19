@@ -160,7 +160,7 @@ public class EnrollmentService {
             case CASH:
                 double amountReceived = amount;
                 if(paymentData != null && paymentData.length > 0) {
-                    amount = Double.parseDouble(paymentData[0].replace(",", "."));
+                    amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
                 }
                 return new CashPayment(amount, paymentDate, description, amountReceived);
             default:
@@ -341,7 +341,7 @@ public class EnrollmentService {
         //Validação específica para CashPayment: valor recebido >= valor do pagamento
         if (paymentType == PaymentType.CASH && paymentData != null && paymentData.length > 0) {
             double amountReceveid = Double.parseDouble(paymentData[0].replace(",", "."));
-            if(amountReceveid <= amount) {
+            if(amountReceveid < amount) {
                 return new OperationResult(false,"O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceveid) +
                         ") deve ser maior ou igual ao valor do pagamento ("+CurrencyFormatter.formatCurrency(amount) + ").");
             }
