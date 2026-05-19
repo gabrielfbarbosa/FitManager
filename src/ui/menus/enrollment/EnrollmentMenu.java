@@ -100,11 +100,11 @@ public class EnrollmentMenu {
         PaymentType paymentType = selectPaymentType();
         if (paymentType == null) return;
 
-        String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
-        if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
-
         String[] paymentData = collectPaymentData(paymentType, initialAmount);
         if (paymentData == null) return;
+
+        String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
+        if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
 
         OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
                 durationMonths, initialAmount, paymentType, paymentDescription, paymentData);
@@ -217,11 +217,11 @@ public class EnrollmentMenu {
         PaymentType paymentType = selectPaymentType();
         if (paymentType == null) return;
 
-        String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
-        if (description == null) description = "Pagamento adicional";
-
         String[] paymentData = collectPaymentData(paymentType, amount);
         if (paymentData == null) return;
+
+        String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
+        if (description == null) description = "Pagamento adicional";
 
         OperationResult result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
 
@@ -273,29 +273,46 @@ public class EnrollmentMenu {
                 return new String[]{pixKey};
 
             case CREDIT_CARD:
-                String installmentsStr = ui.getInput("Digite a quantidade de parcelas:");
+                String installmentsStr = ui.getInput("Digite o número de parcelas:");
                 if (installmentsStr == null) return null;
                 int installments = InputParser.parseIntSafe(installmentsStr);
                 if (installments == InputParser.INVALID_INT || installments <= 0) {
-                    ui.showError("Número de parcelas inválido.");
+                    ui.showError("O número de parcelas deve ser um inteiro positivo.");
                     return null;
                 }
 
-                String creditDigits = ui.getInput("Digite os 4 últimos dígitos do cartão:");
+                String creditDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
                 if (creditDigits == null) return null;
-                return new String[]{String.valueOf(installments), creditDigits};
+                if (creditDigits.trim().length() != 4 || !InputParser.isNumeric(creditDigits.trim())) {
+                    ui.showError("Informe exatamente 4 dígitos numéricos.");
+                    return null;
+                }
+
+                return new String[]{String.valueOf(installments), creditDigits.trim()};
 
             case DEBIT_CARD:
-                String debitDigits = ui.getInput("Digite os 4 últimos dígitos do cartão:");
+                String debitDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
                 if (debitDigits == null) return null;
-                return new String[]{debitDigits};
+                if (debitDigits.trim().length() != 4 || !InputParser.isNumeric(debitDigits.trim())) {
+                    ui.showError("Informe exatamente 4 dígitos numéricos.");
+                    return null;
+                }
+
+                return new String[]{debitDigits.trim()};
 
             case CASH:
                 String receivedStr = ui.getInput(
-                        "Digite o valor recebido em dinheiro (>= " + CurrencyFormatter.formatCurrency(amount) + "):"
+                        "Digite o valor recebido em dinheiro (Valor a receber " + CurrencyFormatter.formatCurrency(amount) + "):"
                 );
                 if (receivedStr == null) return null;
-                return new String[]{receivedStr};
+
+                double received = InputParser.parseDoubleSafe(receivedStr);
+                if (received == InputParser.INVALID_DOUBLE || received <= 0) {
+                    ui.showError("O valor recebido deve ser positivo.");
+                    return null;
+                }
+
+                return new String[]{receivedStr.trim()};
 
             default:
                 return new String[0];
