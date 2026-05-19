@@ -5,7 +5,7 @@ import java.time.Period;
 
 import util.DateFormatter;
 
-public class Student {
+public class Student implements Summarizable {
 
     private String name;
     private String cpf;
@@ -134,6 +134,15 @@ public class Student {
     }
 
     /**
+     * Retorna um resumo curto do aluno em uma única linha.
+     * Formato: "Nome | CPF: XXX.XXX.XXX-XX | XX anos"
+     */
+    @Override
+    public String getSummary() {
+        return name + " | CPF: " + getFormattedCpf() + " | " + calculateAge() + " anos";
+    }
+
+    /**
      * Formata o CPF para exibição: 123.456.789-00
      */
     public String getFormattedCpf() {
@@ -186,7 +195,7 @@ public class Student {
         return "Nome: " + name + "\n" +
                 "CPF: " + getFormattedCpf() + "\n" +
                 "Contato: " + contact + "\n" +
-                "Data de Nascimento: " + DateFormatter.format(birthDate) + "\n" +
+                "Data de Nascimento: " + DateFormatter.formatDate(birthDate) + "\n" +
                 "Idade: " + calculateAge() + " anos" + "\n" +
                 "Status: " + (active ? "Ativo" : "Inativo");
     }

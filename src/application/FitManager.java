@@ -3,9 +3,11 @@ package application;
 import application.services.StudentService;
 import application.services.PlanService;
 import application.services.EnrollmentService;
+import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PlanType;
 import domain.model.enums.PaymentType;
-import domain.model.Plan;
+import domain.model.filters.EnrollmentFilter;
+import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
 import util.CurrencyFormatter;
@@ -137,10 +139,13 @@ public class FitManager {
 
     /**
      * Realiza a matrícula de um aluno em um plano.
+     *
+     * @param paymentData dados adicionais do pagamento (variam por tipo)
      */
     public OperationResult enrollStudent(String cpf, String planName, String startDateStr,
                                          int durationMonths, double initialAmount,
-                                         PaymentType paymentType, String paymentDescription) {
+                                         PaymentType paymentType, String paymentDescription,
+                                         String[] paymentData) {
 
         String cleanCpf = Student.cleanCpf(cpf);
 
@@ -160,30 +165,12 @@ public class FitManager {
                             + "Cancele a matrícula atual antes de realizar uma nova.");
         }
 
-        OperationResult paymentCheck = validateInitialPayment(initialAmount, paymentType);
-        if (!paymentCheck.isSuccess()) {
-            return paymentCheck;
-        }
-
         LocalDate startDate = DateFormatter.parseDate(startDateStr);
 
         Student student = (Student) studentResult.getData();
         Plan plan = (Plan) planResult.getData();
         return enrollmentService.enroll(student, plan, startDate, durationMonths,
-                initialAmount, paymentType, paymentDescription);
-    }
-
-    /**
-     * Valida o valor e o tipo do pagamento inicial de uma matrícula.
-     */
-    private OperationResult validateInitialPayment(double initialAmount, PaymentType paymentType) {
-        if (initialAmount <= 0) {
-            return new OperationResult(false, "O valor do pagamento inicial deve ser positivo.");
-        }
-        if (paymentType == null) {
-            return new OperationResult(false, "O tipo de pagamento é obrigatório.");
-        }
-        return new OperationResult(true, "ok");
+                initialAmount, paymentType, paymentDescription, paymentData);
     }
 
     /**
@@ -211,19 +198,37 @@ public class FitManager {
 
     /**
      * Registra um novo pagamento para uma matrícula.
+     *
+     * @param paymentData dados adicionais do pagamento (variam por tipo)
      */
     public OperationResult registerPayment(
             int enrollmentCode,
             double amount,
             PaymentType paymentType,
-            String description
+            String description,
+            String[] paymentData
     ) {
-        return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description);
+        return enrollmentService.registerPayment(enrollmentCode, amount, paymentType, description, paymentData);
     }
 
     // ============================
     // Operações de Relatórios
     // ============================
+
+    /**
+     * Lista matrículas usando um filtro polimórfico.
+     * Delega ao EnrollmentService.listByFilter(), que aplica o critério
+     * do filtro a toda a coleção de matrículas.
+     *
+     * Permite adicionar novos relatórios sem alterar o FitManager —
+     * basta criar uma nova implementação de EnrollmentFilter.
+     *
+     * @param filter filtro polimórfico a ser aplicado
+     * @return OperationResult com ArrayList<Enrollment> em data
+     */
+    public OperationResult listEnrollmentsByFilter(EnrollmentFilter filter) {
+        return enrollmentService.listByFilter(filter);
+    }
 
     /**
      * Lista todas as matrículas (ativas e canceladas).
@@ -267,7 +272,7 @@ public class FitManager {
             ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) allEnrollments.getData();
             totalEnrollments = enrollments.size();
             for (Enrollment enrollment : enrollments) {
-                if (enrollment.getStatus().toString().equals("Ativa")) {
+                if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                     totalActiveEnrollments++;
                 }
                 totalBalance += enrollment.calculateBalance();

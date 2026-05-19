@@ -88,7 +88,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99.90):");
+        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99,90):");
         if (initialAmountStr == null) return;
 
         double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
@@ -100,11 +100,14 @@ public class EnrollmentMenu {
         PaymentType paymentType = selectPaymentType();
         if (paymentType == null) return;
 
+        String[] paymentData = collectPaymentData(paymentType, initialAmount);
+        if (paymentData == null) return;
+
         String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
 
         OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
-                durationMonths, initialAmount, paymentType, paymentDescription);
+                durationMonths, initialAmount, paymentType, paymentDescription, paymentData);
 
         if (result.isSuccess()) {
             Enrollment enrollment = (Enrollment) result.getData();
@@ -202,7 +205,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99.90):");
+        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99,90):");
         if (amountStr == null) return;
 
         double amount = InputParser.parseDoubleSafe(amountStr);
@@ -214,10 +217,13 @@ public class EnrollmentMenu {
         PaymentType paymentType = selectPaymentType();
         if (paymentType == null) return;
 
+        String[] paymentData = collectPaymentData(paymentType, amount);
+        if (paymentData == null) return;
+
         String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (description == null) description = "Pagamento adicional";
 
-        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description);
+        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -257,13 +263,70 @@ public class EnrollmentMenu {
     }
 
     /**
+     * Coleta dados adicionais específicos do tipo de pagamento.
+     */
+    private String[] collectPaymentData(PaymentType paymentType, double amount) {
+        switch (paymentType) {
+            case PIX:
+                String pixKey = ui.getInput("Digite a chave PIX:");
+                if (pixKey == null) return null;
+                return new String[]{pixKey};
+
+            case CREDIT_CARD:
+                String installmentsStr = ui.getInput("Digite o número de parcelas:");
+                if (installmentsStr == null) return null;
+                int installments = InputParser.parseIntSafe(installmentsStr);
+                if (installments == InputParser.INVALID_INT || installments <= 0) {
+                    ui.showError("O número de parcelas deve ser um inteiro positivo.");
+                    return null;
+                }
+
+                String creditDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
+                if (creditDigits == null) return null;
+                if (creditDigits.trim().length() != 4 || !InputParser.isNumeric(creditDigits.trim())) {
+                    ui.showError("Informe exatamente 4 dígitos numéricos.");
+                    return null;
+                }
+
+                return new String[]{String.valueOf(installments), creditDigits.trim()};
+
+            case DEBIT_CARD:
+                String debitDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
+                if (debitDigits == null) return null;
+                if (debitDigits.trim().length() != 4 || !InputParser.isNumeric(debitDigits.trim())) {
+                    ui.showError("Informe exatamente 4 dígitos numéricos.");
+                    return null;
+                }
+
+                return new String[]{debitDigits.trim()};
+
+            case CASH:
+                String receivedStr = ui.getInput(
+                        "Digite o valor recebido em dinheiro (Valor a receber " + CurrencyFormatter.formatCurrency(amount) + "):"
+                );
+                if (receivedStr == null) return null;
+
+                double received = InputParser.parseDoubleSafe(receivedStr);
+                if (received == InputParser.INVALID_DOUBLE || received <= 0) {
+                    ui.showError("O valor recebido deve ser positivo.");
+                    return null;
+                }
+
+                return new String[]{receivedStr.trim()};
+
+            default:
+                return new String[0];
+        }
+    }
+
+    /**
      * Constrói um sumário formatado de uma matrícula para exibição.
      */
     private String buildEnrollmentSummary(Enrollment enrollment) {
         return "Código: " + enrollment.getCode() + "\n" +
                 "Plano: " + enrollment.getPlanName() + "\n" +
-                "Data Início: " + DateFormatter.format(enrollment.getStartDate()) + "\n" +
-                "Data Fim: " + DateFormatter.format(enrollment.getEndDate()) + "\n" +
+                "Data Início: " + DateFormatter.formatDate(enrollment.getStartDate()) + "\n" +
+                "Data Fim: " + DateFormatter.formatDate(enrollment.getEndDate()) + "\n" +
                 "Duração: " + enrollment.getDurationMonths() +
                 (enrollment.getDurationMonths() == 1 ? " mês" : " meses") + "\n" +
                 "Preço Total: " + CurrencyFormatter.formatCurrency(enrollment.getTotalPrice()) + "\n" +
