@@ -1,4 +1,5 @@
 import application.FitManager;
+import exceptions.PersistenceException;
 import mocks.DataMock;
 import ui.menus.main.MainMenu;
 import ui.screen.UserInterface;
@@ -21,11 +22,24 @@ public class FitManagerApp {
 
         FitManager fitManager = new FitManager();
 
-        // Carrega dados de demonstração se DEV_MODE está ativo
-        if (DEV_MODE) {
+        // Carrega dados persistidos da sessão anterior (se houver).
+        // Falhas de leitura (arquivo corrompido, IO) são comunicadas ao usuário
+        // sem encerrar abruptamente. Arquivo ausente é situação normal e silenciosa.
+        try {
+            fitManager.loadAll();
+        } catch (PersistenceException e) {
+            ui.showError("Falha ao carregar dados persistidos:\n" + e.getMessage()
+                    + "\n\nO sistema iniciará com os dados que conseguiu carregar até o erro.");
+        }
+
+        // Popula com dados de demonstração apenas se DEV_MODE está ativo
+        // e o sistema iniciou vazio (sem arquivos de persistência ou
+        // arquivos vazios). Assim, o DataMock não sobrescreve dados reais
+        // de uma sessão anterior.
+        if (DEV_MODE && fitManager.isEmpty()) {
             DataMock.populateDemo(fitManager);
             ui.showMessage("Modo de Desenvolvimento ativado!\n\n" +
-                    "O sistema foi carregado com dados de demonstração.\n" +
+                    "O sistema foi carregado com dados de demonstração (nenhum arquivo de persistência foi encontrado).\n" +
                     "Você pode explorar todas as funcionalidades sem inserir dados manualmente.\n\n" +
                     "Para desativar este modo, mude a variável DEV_MODE em FitManagerApp para false.");
         }
@@ -34,6 +48,16 @@ public class FitManagerApp {
 
         // Inicia o sistema
         mainMenu.start();
+
+        // Ao encerrar, persiste todos os dados em arquivo.
+        // Falhas de escrita são informadas ao usuário antes do encerramento
+        // para que ele saiba que os dados da sessão podem não ter sido salvos.
+        try {
+            fitManager.saveAll();
+        } catch (PersistenceException e) {
+            ui.showError("Falha ao salvar dados no encerramento:\n" + e.getMessage()
+                    + "\n\nAs alterações desta sessão podem ter sido perdidas.");
+        }
     }
 
     /**

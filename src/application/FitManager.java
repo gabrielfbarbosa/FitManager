@@ -13,6 +13,7 @@ import domain.model.Student;
 import domain.model.Enrollment;
 import exceptions.DuplicatedEnrollmentException;
 import exceptions.InvalidFormatFieldException;
+import exceptions.PersistenceException;
 import exceptions.RequiredFieldException;
 import exceptions.StudentWithActiveEnrollmentException;
 import util.CurrencyFormatter;
@@ -48,6 +49,56 @@ public class FitManager {
         this.studentService = new StudentService();
         this.planService = new PlanService();
         this.enrollmentService = new EnrollmentService();
+        // conecta o repositório de alunos para validar CPFs
+        this.enrollmentService.linkStudentRepository(this.studentService.getRepository());
+        // Conecta o repositório de planos ao de matrículas para que a leitura
+        // do arquivo de matrículas consiga resolver as referências de Plan.
+        this.enrollmentService.linkPlanRepository(this.planService.getRepository());
+    }
+
+    // ============================
+    // Coordenação de persistência
+    // ============================
+
+    /**
+     * Carrega todos os repositórios na ordem correta:
+     * primeiro alunos e planos (independentes), depois matrículas
+     * (que referenciam planos). Arquivos ausentes são tratados como
+     * primeira execução (repositórios iniciam vazios sem erro).
+     *
+     * @throws PersistenceException se algum arquivo estiver corrompido
+     *         ou se ocorrer falha de leitura
+     */
+    public void loadAll() throws PersistenceException {
+        studentService.getRepository().load();
+        planService.getRepository().load();
+        enrollmentService.getRepository().load();
+    }
+
+    /**
+     * Persiste todos os repositórios na ordem reversa de dependência:
+     * matrículas primeiro (pra garantir que estejam fechadas), depois
+     * planos e alunos. Os recursos são fechados via try-with-resources
+     * em cada repositório, mesmo em caso de falha.
+     *
+     * @throws PersistenceException se ocorrer falha de escrita em
+     *         qualquer um dos repositórios
+     */
+    public void saveAll() throws PersistenceException {
+        enrollmentService.getRepository().save();
+        planService.getRepository().save();
+        studentService.getRepository().save();
+    }
+
+    /**
+     * Indica se TODOS os repositórios estão vazios — usado pelo bootstrap
+     * para decidir se deve popular o sistema com dados de demonstração
+     * (DataMock) ou se já há dados persistidos do uso anterior.
+     */
+    public boolean isEmpty() {
+        return studentService.getRepository().isEmpty()
+                && planService.getRepository().isEmpty()
+                && enrollmentService.getRepository().isEmpty();
     }
 
     // ============================

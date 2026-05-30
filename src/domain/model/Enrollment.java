@@ -46,6 +46,61 @@ public class Enrollment implements Summarizable {
         this.cancelledAt = null;
     }
 
+    /**
+     * Construtor de restauração — usado pela camada de persistência para
+     * reconstruir uma matrícula a partir do arquivo, preservando o
+     * {@code code} original (sem incrementar {@code nextCode}), o
+     * {@code status} salvo e a {@code cancelledAt} quando aplicável.
+     *
+     * Os pagamentos são adicionados depois, ao carregar o arquivo de
+     * pagamentos.
+     *
+     * Não deve ser usado pela camada de aplicação para criar novas
+     * matrículas — para isso, use o construtor padrão que gera o
+     * próximo código sequencial via {@code nextCode++}.
+     */
+    public Enrollment(
+            int code,
+            String studentCpf,
+            Plan plan,
+            LocalDate startDate,
+            int durationMonths,
+            double totalPrice,
+            EnrollmentStatus status,
+            LocalDate cancelledAt
+    ) {
+        this.code = code;
+        this.studentCpf = studentCpf;
+        this.plan = plan;
+        this.planName = (plan != null) ? plan.getName() : "";
+        this.startDate = startDate;
+        this.durationMonths = durationMonths;
+        this.endDate = startDate.plusMonths(durationMonths).minusDays(1);
+        this.totalPrice = totalPrice;
+        this.status = status;
+        this.payments = new ArrayList<>();
+        this.cancelledAt = cancelledAt;
+    }
+
+    /**
+     * Retorna o próximo código sequencial que será atribuído à próxima
+     * matrícula criada via construtor padrão.
+     * Utilizado pela camada de persistência para salvar o estado do contador.
+     */
+    public static int getNextCode() {
+        return nextCode;
+    }
+
+    /**
+     * Restaura o contador de códigos sequenciais.
+     * Utilizado pela camada de persistência ao recarregar as matrículas:
+     * garante que a próxima matrícula criada não reutilize um código já
+     * existente entre sessões.
+     */
+    public static void setNextCode(int value) {
+        nextCode = value;
+    }
+
     // ========================
     // Métodos de negócio
     // ========================
