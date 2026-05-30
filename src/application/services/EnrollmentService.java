@@ -12,6 +12,8 @@ import domain.model.payments.CreditCardPayment;
 import domain.model.payments.DebitCardPayment;
 import domain.model.plans.Plan;
 import domain.model.Student;
+import exceptions.InvalidFormatFieldException;
+import exceptions.RequiredFieldException;
 import util.CurrencyFormatter;
 
 import java.time.LocalDate;
@@ -21,6 +23,15 @@ import java.util.ArrayList;
 /**
  * Serviço responsável por manter a coleção de matrículas em memória
  * e implementar as operações específicas da entidade Enrollment.
+ *
+ * Política de comunicação de falhas:
+ * - Argumentos obrigatórios nulos (aluno, plano, data) → {@link RequiredFieldException}.
+ * - Strings de pagamento mal formadas internamente → capturadas como
+ *   {@link NumberFormatException} e relançadas como {@link InvalidFormatFieldException}.
+ * - Demais validações de domínio (valores não positivos, data anterior a hoje,
+ *   duração abaixo do mínimo, matrícula cancelada não aceita pagamento) seguem
+ *   usando {@link OperationResult} com {@code success = false}.
+ * - A duplicidade de matrícula ativa é detectada pelo {@code FitManager}.
  */
 public class EnrollmentService {
 
@@ -32,14 +43,6 @@ public class EnrollmentService {
 
     /**
      * Realiza a matrícula de um aluno em um plano.
-     * Cria um Enrollment e registra um pagamento inicial usando a subclasse correta
-     *
-     * @param paymentData dados adicionais do pagamento (variam por tipo):
-     *                    PIX: [pixKey]
-     *                    CREDIT_CARD: [installments, cardLastDigits]
-     *                    DEBIT_CARD: [cardLastDigits]
-     *                    CASH: [amountReceived]
-     * @return OperationResult com o Enrollment criado em data (se sucesso)
      */
     public OperationResult enroll(
             Student student,
@@ -98,6 +101,7 @@ public class EnrollmentService {
 
     /**
      * Valida os parâmetros necessários para uma matrícula.
+     * Argumentos nulos são tratados como campos obrigatórios ausentes.
      */
     private OperationResult validateEnrollmentParams(
             Student student,
@@ -106,13 +110,13 @@ public class EnrollmentService {
             int durationMonths
     ) {
         if (student == null) {
-            return new OperationResult(false, "Aluno não pode ser nulo.");
+            throw new RequiredFieldException("aluno");
         }
         if (plan == null) {
-            return new OperationResult(false, "Plano não pode ser nulo.");
+            throw new RequiredFieldException("plano");
         }
         if (startDate == null) {
-            return new OperationResult(false, "Data de início não pode ser nula.");
+            throw new RequiredFieldException("data de início");
         }
         if (startDate.isBefore(LocalDate.now())) {
             return new OperationResult(false, "A data de início não pode ser anterior a hoje.");
@@ -126,14 +130,11 @@ public class EnrollmentService {
     }
 
     /**
-     * Instancia a subclasse correta de Payment com base no PaymentType
-     * Este é o ÚNICO ponto do sistema que conhece as subclasse concretas de Payment.
-     *
-     * @param paymentData dados adicionais específicos do tipo:
-     *                    PIX: [pixKey]
-     *                    CREDIT_CARD: [installments, cardLastDigits]
-     *                    DEBIT_CARD: [cardLastDigits]
-     *                    CASH: [amountReceived]
+     * Instancia a subclasse correta de Payment com base no PaymentType.
+     * As conversões {@code Integer.parseInt}/{@code Double.parseDouble} são
+     * envoltas em {@code try-catch} para que qualquer {@link NumberFormatException}
+     * vinda de dados mal formados seja relançada como {@link InvalidFormatFieldException},
+     * mantendo a comunicação de falhas dentro da hierarquia do FitManager.
      */
     private Payment createPaymentByType(
             double amount,
@@ -149,9 +150,13 @@ public class EnrollmentService {
             case CREDIT_CARD:
                 int installments = 1;
                 String creditDigits = "0000";
-                if(paymentData != null && paymentData.length >= 2) {
-                    installments = Integer.parseInt(paymentData[0]);
-                     creditDigits = paymentData[1];
+                if (paymentData != null && paymentData.length >= 2) {
+                    try {
+                        installments = Integer.parseInt(paymentData[0]);
+                    } catch (NumberFormatException e) {
+                        throw new InvalidFormatFieldException("número de parcelas", "número inteiro");
+                    }
+                    creditDigits = paymentData[1];
                 }
                 return new CreditCardPayment(amount, paymentDate, description, installments, creditDigits);
             case DEBIT_CARD:
@@ -159,8 +164,12 @@ public class EnrollmentService {
                 return new DebitCardPayment(amount, paymentDate, description, debitDigits);
             case CASH:
                 double amountReceived = amount;
-                if(paymentData != null && paymentData.length > 0) {
-                    amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
+                if (paymentData != null && paymentData.length > 0) {
+                    try {
+                        amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
+                    } catch (NumberFormatException e) {
+                        throw new InvalidFormatFieldException("valor recebido", "número decimal (ex.: 99,90)");
+                    }
                 }
                 return new CashPayment(amount, paymentDate, description, amountReceived);
             default:
@@ -170,10 +179,6 @@ public class EnrollmentService {
 
     /**
      * Cancela uma matrícula ativa.
-     * Calcula a taxa de cancelamento via polimorfismo (plan.getCancellationFee)
-     * ANTES de efetuar o cancelamento, e inclui o resumo financeiro no resultado.
-     *
-     * @return OperationResult com o Enrollment em data (se sucesso)
      */
     public OperationResult cancelEnrollment(int enrollmentCode) {
         Enrollment enrollment = findByCode(enrollmentCode);
@@ -185,18 +190,14 @@ public class EnrollmentService {
             return new OperationResult(false, "Esta matrícula já foi cancelada.");
         }
 
-        // Calcula taxa de cancelamento ANTES de cancelar (polimorfismo)
         double cancellationFee = enrollment.getPlan().getCancellationFee(enrollment);
 
-        // Coleta informações financeiras antes do cancelamento
         double totalPrice = enrollment.getTotalPrice();
         double totalPaid = totalPrice - enrollment.calculateBalance();
         double pendingBalance = enrollment.calculateBalance();
 
-        // Efetua o cancelamento
         enrollment.cancel();
 
-        // Monta resumo financeiro do cancelamento
         String message = "✅ Matrícula " + enrollmentCode + " cancelada com sucesso!\n\n" +
                 "RESUMO FINANCEIRO DO CANCELAMENTO\n" +
                 "Valor total contratado: " + CurrencyFormatter.formatCurrency(totalPrice) + "\n" +
@@ -221,12 +222,10 @@ public class EnrollmentService {
 
     /**
      * Busca a matrícula ativa de um aluno pelo CPF.
-     *
-     * @return OperationResult com o Enrollment encontrado em data (se sucesso)
      */
     public OperationResult findActiveByStudentCpf(String cpf) {
-        if (cpf == null || cpf.trim().isEmpty()) {
-            return new OperationResult(false, "O CPF é obrigatório para consulta.");
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
         }
 
         for (Enrollment enrollment : enrollments) {
@@ -241,10 +240,6 @@ public class EnrollmentService {
 
     /**
      * Verifica se um aluno possui matrícula ativa.
-     * Usado pelo FitManager para validar remoção de alunos e nova matrícula.
-     *
-     * @param cpf CPF do aluno (apenas dígitos)
-     * @return true se o aluno possui ao menos uma matrícula ativa
      */
     public boolean hasActiveEnrollment(String cpf) {
         for (Enrollment enrollment : enrollments) {
@@ -258,12 +253,10 @@ public class EnrollmentService {
 
     /**
      * Lista o histórico de matrículas de um aluno (ativas e canceladas).
-     *
-     * @return OperationResult com ArrayList<Enrollment> em data
      */
     public OperationResult listHistoryByStudent(String cpf) {
-        if (cpf == null || cpf.trim().isEmpty()) {
-            return new OperationResult(false, "O CPF é obrigatório para consulta.");
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
         }
 
         ArrayList<Enrollment> studentEnrollments = new ArrayList<>();
@@ -284,10 +277,6 @@ public class EnrollmentService {
 
     /**
      * Registra um novo pagamento para uma matrícula.
-     * Instancia a subclasse correta com o Payment e exibe o resumo via getPaymentSummary().
-     *
-     * @param paymentData dados adicionais específicos do tipo de pagamento
-     * @return OperationResult com o Payment criado em data (se sucesso)
      */
     public OperationResult registerPayment(
             int enrollmentCode,
@@ -325,10 +314,9 @@ public class EnrollmentService {
 
     /**
      * Valida os parâmetros de um pagamento.
-     * Inclui validação genérica (amount > 0, tipo não nulo) e
-     * validação específica para pagamento em dinheiro (amountReceived >= amount).
-     *
-     * Centraliza a verificação para evitar duplicação entre enroll() e registerPayment().
+     * A conversão de {@code amountReceived} para {@code double} é envolvida em
+     * {@code try-catch} para relançar {@link NumberFormatException} como
+     * {@link InvalidFormatFieldException}.
      */
     private OperationResult validatePaymentParams(double amount, PaymentType paymentType, String[] paymentData) {
         if (amount <= 0) {
@@ -338,12 +326,16 @@ public class EnrollmentService {
             return new OperationResult(false, "O tipo de pagamento é obrigatório.");
         }
 
-        //Validação específica para CashPayment: valor recebido >= valor do pagamento
         if (paymentType == PaymentType.CASH && paymentData != null && paymentData.length > 0) {
-            double amountReceveid = Double.parseDouble(paymentData[0].replace(",", "."));
-            if(amountReceveid < amount) {
-                return new OperationResult(false,"O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceveid) +
-                        ") deve ser maior ou igual ao valor do pagamento ("+CurrencyFormatter.formatCurrency(amount) + ").");
+            double amountReceived;
+            try {
+                amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
+            } catch (NumberFormatException e) {
+                throw new InvalidFormatFieldException("valor recebido", "número decimal (ex.: 99,90)");
+            }
+            if (amountReceived < amount) {
+                return new OperationResult(false, "O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceived) +
+                        ") deve ser maior ou igual ao valor do pagamento (" + CurrencyFormatter.formatCurrency(amount) + ").");
             }
         }
         return new OperationResult(true, "ok");
@@ -351,14 +343,6 @@ public class EnrollmentService {
 
     /**
      * Lista matrículas que atendem ao critério de um filtro polimórfico.
-     *
-     * Método genérico que aplica qualquer EnrollmentFilter à coleção,
-     * eliminando a necessidade de criar métodos específicos para cada
-     * tipo de filtragem. Novos filtros podem ser adicionados sem alterar
-     * este serviço (princípio Open/Closed).
-     *
-     * @param filter filtro polimórfico a ser aplicado
-     * @return OperationResult com ArrayList<Enrollment> em data
      */
     public OperationResult listByFilter(EnrollmentFilter filter) {
         ArrayList<Enrollment> filtered = new ArrayList<>();
@@ -380,7 +364,6 @@ public class EnrollmentService {
 
     /**
      * Busca uma matrícula pelo código.
-     * Utilizado internamente para validações e operações.
      */
     public Enrollment findByCode(int code) {
         for (Enrollment enrollment : enrollments) {
@@ -393,8 +376,6 @@ public class EnrollmentService {
 
     /**
      * Lista todas as matrículas (ativas e canceladas).
-     *
-     * @return OperationResult com ArrayList<Enrollment> em data
      */
     public OperationResult listAll() {
         if (enrollments.isEmpty()) {
@@ -408,8 +389,6 @@ public class EnrollmentService {
 
     /**
      * Lista apenas as matrículas ativas.
-     *
-     * @return OperationResult com ArrayList<Enrollment> em data
      */
     public OperationResult listActive() {
         ArrayList<Enrollment> activeEnrollments = new ArrayList<>();
@@ -429,9 +408,7 @@ public class EnrollmentService {
     }
 
     /**
-     * Lista apenas as matrículas que possuem saldo pendente (não estão totalmente pagas).
-     *
-     * @return OperationResult com ArrayList<Enrollment> em data
+     * Lista apenas as matrículas com saldo pendente.
      */
     public OperationResult listWithPendingBalance() {
         ArrayList<Enrollment> pendingEnrollments = new ArrayList<>();

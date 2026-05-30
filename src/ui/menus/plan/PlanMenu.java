@@ -1,5 +1,6 @@
 package ui.menus.plan;
 
+import exceptions.FitManagerException;
 import ui.screen.UserInterface;
 import application.FitManager;
 import application.OperationResult;
@@ -34,31 +35,35 @@ public class PlanMenu {
         boolean running = true;
 
         while (running) {
-            String menuOptions = "";
-            for (PlanMenuOption opt : PlanMenuOption.values()) {
-                menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
-            }
-            String input = ui.showMenu("> GERENCIAR PLANOS", menuOptions);
+            try {
+                String menuOptions = "";
+                for (PlanMenuOption opt : PlanMenuOption.values()) {
+                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                }
+                String input = ui.showMenu("> GERENCIAR PLANOS", menuOptions);
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + PlanMenuOption.values().length + ".");
-                continue;
-            }
+                if (input == null) { running = false; continue; }
+                if (!InputParser.isNumeric(input)) {
+                    ui.showError("Opção inválida. Digite um número de 1 a " + PlanMenuOption.values().length + ".");
+                    continue;
+                }
 
-            PlanMenuOption option = PlanMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                PlanMenuOption option = PlanMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + PlanMenuOption.values().length + ".");
-                continue;
-            }
+                if (option == null) {
+                    ui.showError("Opção inválida. Escolha de 1 a " + PlanMenuOption.values().length + ".");
+                    continue;
+                }
 
-            switch (option) {
-                case CADASTRAR:      registerPlan();   break;
-                case CONSULTAR_NOME: findPlanByName();    break;
-                case ALTERAR_PRECO:  updatePrice();   break;
-                case LISTAR:         listAllPlans();   break;
-                case VOLTAR:         running = false;   break;
+                switch (option) {
+                    case CADASTRAR:      registerPlan();   break;
+                    case CONSULTAR_NOME: findPlanByName();    break;
+                    case ALTERAR_PRECO:  updatePrice();   break;
+                    case LISTAR:         listAllPlans();   break;
+                    case VOLTAR:         running = false;   break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
@@ -80,8 +85,8 @@ public class PlanMenu {
         String minDurationStr = ui.getInput("Digite a duração mínima (em meses):");
         if (minDurationStr == null) return;
 
-        int minimumDuration = InputParser.parseIntSafe(minDurationStr);
-        if (minimumDuration == InputParser.INVALID_INT || minimumDuration <= 0) {
+        int minimumDuration = InputParser.parseInt(minDurationStr, "Duração minima");
+        if (minimumDuration <= 0) {
             ui.showError("A duração mínima deve ser um número positivo.");
             return;
         }
@@ -89,8 +94,8 @@ public class PlanMenu {
         String priceStr = ui.getInput("Digite o preço por mês (ex: 99,90):");
         if (priceStr == null) return;
 
-        double pricePerMonth = InputParser.parseDoubleSafe(priceStr);
-        if (pricePerMonth == InputParser.INVALID_DOUBLE || pricePerMonth <= 0) {
+        double pricePerMonth = InputParser.parseDouble(priceStr, "Preço por mes");
+        if (pricePerMonth <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
         }
@@ -141,8 +146,8 @@ public class PlanMenu {
         String newPriceStr = ui.getInput("Digite o novo preço por mês (ex: 99,90):");
         if (newPriceStr == null) return;
 
-        double newPrice = InputParser.parseDoubleSafe(newPriceStr);
-        if (newPrice == InputParser.INVALID_DOUBLE || newPrice <= 0) {
+        double newPrice = InputParser.parseDouble(newPriceStr, "Novo Preço");
+        if (newPrice <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
         }

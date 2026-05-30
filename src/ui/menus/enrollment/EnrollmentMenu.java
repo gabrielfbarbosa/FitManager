@@ -4,6 +4,7 @@ import application.FitManager;
 import application.OperationResult;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
+import exceptions.FitManagerException;
 import ui.screen.InputParser;
 import ui.screen.UserInterface;
 import util.CurrencyFormatter;
@@ -36,32 +37,37 @@ public class EnrollmentMenu {
         boolean running = true;
 
         while (running) {
-            String menuOptions = "";
-            for (EnrollmentMenuOption opt : EnrollmentMenuOption.values()) {
-                menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
-            }
-            String input = ui.showMenu("> GERENCIAR MATRÍCULAS", menuOptions);
+            try {
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + EnrollmentMenuOption.values().length + ".");
-                continue;
-            }
+                String menuOptions = "";
+                for (EnrollmentMenuOption opt : EnrollmentMenuOption.values()) {
+                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                }
+                String input = ui.showMenu("> GERENCIAR MATRÍCULAS", menuOptions);
 
-            EnrollmentMenuOption option = EnrollmentMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                if (input == null) { running = false; continue; }
+                if (!InputParser.isNumeric(input)) {
+                    ui.showError("Opção inválida. Digite um número de 1 a " + EnrollmentMenuOption.values().length + ".");
+                    continue;
+                }
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + EnrollmentMenuOption.values().length + ".");
-                continue;
-            }
+                EnrollmentMenuOption option = EnrollmentMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
-            switch (option) {
-                case MATRICULAR:        enrollStudent();          break;
-                case CONSULTAR_ATIVA:   findActiveEnrollment();   break;
-                case HISTORICO:         listHistory();            break;
-                case CANCELAR:          cancelEnrollment();       break;
-                case REGISTRAR_PAGAMENTO: registerPayment();     break;
-                case VOLTAR:            running = false;          break;
+                if (option == null) {
+                    ui.showError("Opção inválida. Escolha de 1 a " + EnrollmentMenuOption.values().length + ".");
+                    continue;
+                }
+
+                switch (option) {
+                    case MATRICULAR:        enrollStudent();          break;
+                    case CONSULTAR_ATIVA:   findActiveEnrollment();   break;
+                    case HISTORICO:         listHistory();            break;
+                    case CANCELAR:          cancelEnrollment();       break;
+                    case REGISTRAR_PAGAMENTO: registerPayment();     break;
+                    case VOLTAR:            running = false;          break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
@@ -82,8 +88,8 @@ public class EnrollmentMenu {
         String durationStr = ui.getInput("Digite a duração (em meses):");
         if (durationStr == null) return;
 
-        int durationMonths = InputParser.parseIntSafe(durationStr);
-        if (durationMonths == InputParser.INVALID_INT || durationMonths <= 0) {
+        int durationMonths = InputParser.parseInt(durationStr, "Duração do plano");
+        if (durationMonths <= 0) {
             ui.showError("A duração deve ser um número positivo.");
             return;
         }
@@ -91,8 +97,8 @@ public class EnrollmentMenu {
         String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99,90):");
         if (initialAmountStr == null) return;
 
-        double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
-        if (initialAmount == InputParser.INVALID_DOUBLE || initialAmount <= 0) {
+        double initialAmount = InputParser.parseDouble(initialAmountStr, "Valor da pagamento inicial");
+        if (initialAmount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }
@@ -170,11 +176,7 @@ public class EnrollmentMenu {
         String codeStr = ui.getInput("Digite o código da matrícula a cancelar:");
         if (codeStr == null) return;
 
-        int code = InputParser.parseIntSafe(codeStr);
-        if (code == InputParser.INVALID_INT) {
-            ui.showError("Código inválido.");
-            return;
-        }
+        int code = InputParser.parseInt(codeStr, "Código da matrícula");
 
         String confirm = ui.getInput("Tem certeza que deseja cancelar a matrícula " + code +
                 "?\nDigite 'S' para confirmar ou qualquer outra tecla para cancelar:");
@@ -199,17 +201,13 @@ public class EnrollmentMenu {
         String codeStr = ui.getInput("Digite o código da matrícula:");
         if (codeStr == null) return;
 
-        int code = InputParser.parseIntSafe(codeStr);
-        if (code == InputParser.INVALID_INT) {
-            ui.showError("Código inválido.");
-            return;
-        }
+        int code = InputParser.parseInt(codeStr, "Código da matrícula");
 
         String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99,90):");
         if (amountStr == null) return;
 
-        double amount = InputParser.parseDoubleSafe(amountStr);
-        if (amount == InputParser.INVALID_DOUBLE || amount <= 0) {
+        double amount = InputParser.parseDouble(amountStr, "Valor do pagamento");
+        if (amount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }
@@ -275,8 +273,8 @@ public class EnrollmentMenu {
             case CREDIT_CARD:
                 String installmentsStr = ui.getInput("Digite o número de parcelas:");
                 if (installmentsStr == null) return null;
-                int installments = InputParser.parseIntSafe(installmentsStr);
-                if (installments == InputParser.INVALID_INT || installments <= 0) {
+                int installments = InputParser.parseInt(installmentsStr, "Número de parcelas");
+                if (installments <= 0) {
                     ui.showError("O número de parcelas deve ser um inteiro positivo.");
                     return null;
                 }
@@ -306,8 +304,8 @@ public class EnrollmentMenu {
                 );
                 if (receivedStr == null) return null;
 
-                double received = InputParser.parseDoubleSafe(receivedStr);
-                if (received == InputParser.INVALID_DOUBLE || received <= 0) {
+                double received = InputParser.parseDouble(receivedStr, "Valor recebido em dinheiro");
+                if (received <= 0) {
                     ui.showError("O valor recebido deve ser positivo.");
                     return null;
                 }

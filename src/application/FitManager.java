@@ -10,12 +10,16 @@ import domain.model.filters.EnrollmentFilter;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
+import exceptions.DuplicatedEnrollmentException;
+import exceptions.InvalidFormatFieldException;
+import exceptions.RequiredFieldException;
+import exceptions.StudentWithActiveEnrollmentException;
 import util.CurrencyFormatter;
+import util.DateFormatter;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-
-import util.DateFormatter;
 
 /**
  * Ponto de entrada único para todas as operações do sistema.
@@ -24,8 +28,14 @@ import util.DateFormatter;
  * tudo passa pelo FitManager. Isso centraliza a coordenação e evita que
  * lógica de validação fique espalhada pelo código.
  *
- * Relação de composição com os serviços: eles são criados e gerenciados
- * pelo próprio FitManager e não existem de forma independente.
+ * Política de exceções na camada de coordenação:
+ * - Quando uma operação envolve coordenação entre serviços (verificar
+ *   matrícula ativa antes de remover aluno, antes de matricular novamente),
+ *   o FitManager é quem lança a {@code BusinessException} apropriada.
+ * - Datas em string fornecidas pelos menus são convertidas aqui; falhas
+ *   de parsing são relançadas como {@link InvalidFormatFieldException}.
+ * - Campos obrigatórios da fachada (CPF, data) são validados na entrada e
+ *   lançam {@link RequiredFieldException}.
  */
 public class FitManager {
 
@@ -47,8 +57,12 @@ public class FitManager {
      * Registra um novo aluno.
      * Delega a validação e criação ao StudentService.
      */
-    public OperationResult registerStudent(String name, String cpf,
-                                           String contact, String birthDate) {
+    public OperationResult registerStudent(
+            String name,
+            String cpf,
+            String contact,
+            String birthDate
+    ) {
         return studentService.registerStudent(name, cpf, contact, birthDate);
     }
 
@@ -68,12 +82,13 @@ public class FitManager {
 
     /**
      * Remove (desativa) um aluno.
-     *
-     * Coordenação entre serviços: o FitManager consulta o EnrollmentService
-     * para verificar matrículas ativas antes de delegar ao StudentService.
-     * Os serviços não se comunicam diretamente entre si.
+     * Coordena com o EnrollmentService para impedir remoção de aluno com
+     * matrícula ativa — situação que é lançada como {@link StudentWithActiveEnrollmentException}.
      */
     public OperationResult removeStudent(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
         String cleanCpf = Student.cleanCpf(cpf);
 
         // Verifica se o aluno existe e está ativo
@@ -84,9 +99,7 @@ public class FitManager {
 
         // Verifica se o aluno possui matrícula ativa
         if (enrollmentService.hasActiveEnrollment(cleanCpf)) {
-            return new OperationResult(false,
-                    "Não é possível remover o aluno: ele possui matrícula ativa.\n"
-                            + "Cancele a matrícula antes de remover o aluno.");
+            throw new StudentWithActiveEnrollmentException(cleanCpf);
         }
 
         return studentService.removeStudent(cleanCpf);
@@ -139,13 +152,30 @@ public class FitManager {
 
     /**
      * Realiza a matrícula de um aluno em um plano.
-     *
-     * @param paymentData dados adicionais do pagamento (variam por tipo)
+     * Captura {@link DateTimeParseException} ao converter {@code startDateStr}
+     * e relança como {@link InvalidFormatFieldException}, mantendo a falha
+     * dentro da hierarquia do FitManager para o catch único do menu.
      */
-    public OperationResult enrollStudent(String cpf, String planName, String startDateStr,
-                                         int durationMonths, double initialAmount,
-                                         PaymentType paymentType, String paymentDescription,
-                                         String[] paymentData) {
+    public OperationResult enrollStudent(
+            String cpf,
+            String planName,
+            String startDateStr,
+            int durationMonths,
+            double initialAmount,
+            PaymentType paymentType,
+            String paymentDescription,
+            String[] paymentData
+    ) {
+
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
+        if (planName == null || planName.isBlank()) {
+            throw new RequiredFieldException("Nome do plano");
+        }
+        if (startDateStr == null || startDateStr.isBlank()) {
+            throw new RequiredFieldException("Data de início");
+        }
 
         String cleanCpf = Student.cleanCpf(cpf);
 
@@ -160,12 +190,15 @@ public class FitManager {
         }
 
         if (enrollmentService.hasActiveEnrollment(cleanCpf)) {
-            return new OperationResult(false,
-                    "O aluno já possui uma matrícula ativa. "
-                            + "Cancele a matrícula atual antes de realizar uma nova.");
+            throw new DuplicatedEnrollmentException(cleanCpf);
         }
 
-        LocalDate startDate = DateFormatter.parseDate(startDateStr);
+        LocalDate startDate;
+        try {
+            startDate = DateFormatter.parseDate(startDateStr);
+        } catch (DateTimeParseException e) {
+            throw new InvalidFormatFieldException("Data de início", DateFormatter.DATE_PATTERN + " (ex.: 30/07/1993)");
+        }
 
         Student student = (Student) studentResult.getData();
         Plan plan = (Plan) planResult.getData();
@@ -184,6 +217,9 @@ public class FitManager {
      * Consulta a matrícula ativa de um aluno pelo CPF.
      */
     public OperationResult findActiveEnrollmentByStudent(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
         String cleanCpf = Student.cleanCpf(cpf);
         return enrollmentService.findActiveByStudentCpf(cleanCpf);
     }
@@ -192,6 +228,9 @@ public class FitManager {
      * Lista o histórico de matrículas de um aluno.
      */
     public OperationResult listEnrollmentHistory(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
         String cleanCpf = Student.cleanCpf(cpf);
         return enrollmentService.listHistoryByStudent(cleanCpf);
     }
@@ -235,20 +274,6 @@ public class FitManager {
      */
     public OperationResult listAllEnrollments() {
         return enrollmentService.listAll();
-    }
-
-    /**
-     * Lista apenas as matrículas ativas.
-     */
-    public OperationResult listActiveEnrollments() {
-        return enrollmentService.listActive();
-    }
-
-    /**
-     * Lista as matrículas com saldo pendente.
-     */
-    public OperationResult listEnrollmentsWithPendingBalance() {
-        return enrollmentService.listWithPendingBalance();
     }
 
     /**
