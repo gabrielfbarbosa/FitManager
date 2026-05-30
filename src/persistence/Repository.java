@@ -32,6 +32,13 @@ import java.util.ArrayList;
 public abstract class Repository<T> {
 
     /**
+     * Diretório base onde os arquivos de persistência são gravados/lidos.
+     * Compartilhado por todos os repositórios concretos para que os arquivos
+     * fiquem agrupados num único local relativo à pasta de execução do programa.
+     */
+    public static final String DATA_DIR = "data";
+
+    /**
      * Coleção interna de itens do repositório. Visível para as subclasses
      * concretas que implementam {@link #save()} e {@link #load()}.
      */
