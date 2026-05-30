@@ -12,6 +12,7 @@ import domain.model.filters.EnrollmentFilter;
 import domain.model.filters.ExpiredEnrollmentFilter;
 import domain.model.filters.PendingBalanceFilter;
 import domain.model.plans.Plan;
+import exceptions.FitManagerException;
 import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
@@ -49,39 +50,43 @@ public class ReportsMenu {
         boolean running = true;
 
         while (running) {
-            StringBuilder menuOptions = new StringBuilder();
-            for (ReportsMenuOption opt : ReportsMenuOption.values()) {
-                menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
-            }
-            String input = ui.showMenu("> RELATÓRIOS", menuOptions.toString());
+            try {
+                StringBuilder menuOptions = new StringBuilder();
+                for (ReportsMenuOption opt : ReportsMenuOption.values()) {
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
+                }
+                String input = ui.showMenu("> RELATÓRIOS", menuOptions.toString());
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + ReportsMenuOption.values().length + ".");
-                continue;
-            }
+                if (input == null) { running = false; continue; }
+                if (!InputParser.isNumeric(input)) {
+                    ui.showError("Opção inválida. Digite um número de 1 a " + ReportsMenuOption.values().length + ".");
+                    continue;
+                }
 
-            ReportsMenuOption option = ReportsMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                ReportsMenuOption option = ReportsMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + ReportsMenuOption.values().length + ".");
-                continue;
-            }
+                if (option == null) {
+                    ui.showError("Opção inválida. Escolha de 1 a " + ReportsMenuOption.values().length + ".");
+                    continue;
+                }
 
-            switch (option) {
-                case LISTAR_ALUNOS:        listAllStudents();          break;
-                case LISTAR_PLANOS:        listAllPlans();             break;
-                case LISTAR_MATRICULAS:    listAllEnrollments();       break;
-                case MATRICULAS_ATIVAS:    showFilteredEnrollments(new ActiveEnrollmentFilter());    break;
-                case MATRICULAS_CANCELADAS:showFilteredEnrollments(new CancelledEnrollmentFilter()); break;
-                case SALDO_PENDENTE:       showFilteredEnrollments(new PendingBalanceFilter());      break;
-                case POR_TIPO_PLANO:       filterByPlanType();         break;
-                case VENCIDAS:             showFilteredEnrollments(new ExpiredEnrollmentFilter());    break;
-                case CONSULTAR_ALUNO:      findStudentByCpf();         break;
-                case CONSULTAR_PLANO:      findPlanByName();           break;
-                case CONSULTAR_MATRICULA:  findActiveEnrollment();     break;
-                case ESTATISTICAS:         showStatistics();           break;
-                case VOLTAR:               running = false;            break;
+                switch (option) {
+                    case LISTAR_ALUNOS:        listAllStudents();          break;
+                    case LISTAR_PLANOS:        listAllPlans();             break;
+                    case LISTAR_MATRICULAS:    listAllEnrollments();       break;
+                    case MATRICULAS_ATIVAS:    showFilteredEnrollments(new ActiveEnrollmentFilter());    break;
+                    case MATRICULAS_CANCELADAS:showFilteredEnrollments(new CancelledEnrollmentFilter()); break;
+                    case SALDO_PENDENTE:       showFilteredEnrollments(new PendingBalanceFilter());      break;
+                    case POR_TIPO_PLANO:       filterByPlanType();         break;
+                    case VENCIDAS:             showFilteredEnrollments(new ExpiredEnrollmentFilter());    break;
+                    case CONSULTAR_ALUNO:      findStudentByCpf();         break;
+                    case CONSULTAR_PLANO:      findPlanByName();           break;
+                    case CONSULTAR_MATRICULA:  findActiveEnrollment();     break;
+                    case ESTATISTICAS:         showStatistics();           break;
+                    case VOLTAR:               running = false;            break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
@@ -174,7 +179,7 @@ public class ReportsMenu {
      */
     private void findStudentByCpf() {
         String cpf = ui.getInput("Digite o CPF do aluno para consulta:");
-        if (cpf == null || cpf.trim().isEmpty()) {
+        if (cpf == null || cpf.isBlank()) {
             ui.showError("Insira um CPF");
             return;
         }
@@ -194,7 +199,7 @@ public class ReportsMenu {
      */
     private void findPlanByName() {
         String name = ui.getInput("Digite o nome do plano para consulta:");
-        if (name == null || name.trim().isEmpty()) {
+        if (name == null || name.isBlank()) {
             ui.showError("Insira um plano");
             return;
         }
@@ -214,7 +219,7 @@ public class ReportsMenu {
      */
     private void findActiveEnrollment() {
         String cpf = ui.getInput("Digite o CPF do aluno:");
-        if (cpf == null || cpf.trim().isEmpty()) {
+        if (cpf == null || cpf.isBlank()) {
             ui.showError("Insira um CPF");
             return;
         }

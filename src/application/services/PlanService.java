@@ -7,6 +7,8 @@ import domain.model.plans.MonthlyPlan;
 import domain.model.plans.QuarterlyPlan;
 import domain.model.plans.SemiAnnualPlan;
 import domain.model.plans.AnnualPlan;
+import exceptions.DuplicatedPlanException;
+import exceptions.RequiredFieldException;
 import util.CurrencyFormatter;
 
 import java.util.ArrayList;
@@ -15,7 +17,11 @@ import java.util.ArrayList;
  * Serviço responsável por manter a coleção de planos em memória
  * e implementar as operações específicas da entidade Plan.
  *
- * Conhece apenas objetos do seu próprio domínio.
+ * Política de comunicação de falhas:
+ * - Campos obrigatórios vazios → {@link RequiredFieldException}.
+ * - Nome de plano duplicado → {@link DuplicatedPlanException}.
+ * - Demais validações (valores não positivos, plano não encontrado) seguem
+ *   usando {@link OperationResult} com {@code success = false}.
  */
 public class PlanService {
 
@@ -27,9 +33,6 @@ public class PlanService {
 
     /**
      * Registra um novo plano no sistema.
-     * Valida campos obrigatórios, valores e unicidade de nome.
-     *
-     * @return OperationResult com o Plan criado em data (se sucesso)
      */
     public OperationResult registerPlan(
             String name,
@@ -38,18 +41,16 @@ public class PlanService {
             int minimumDuration,
             double pricePerMonth
     ) {
-        // Validação de campos obrigatórios
         if (name == null || name.trim().isEmpty()) {
-            return new OperationResult(false, "O nome do plano é obrigatório.");
+            throw new RequiredFieldException("nome do plano");
         }
         if (description == null || description.trim().isEmpty()) {
-            return new OperationResult(false, "A descrição do plano é obrigatória.");
+            throw new RequiredFieldException("descrição do plano");
         }
         if (type == null) {
-            return new OperationResult(false, "O tipo do plano é obrigatório.");
+            throw new RequiredFieldException("tipo do plano");
         }
 
-        // Validação de valores
         if (minimumDuration <= 0) {
             return new OperationResult(false, "A duração mínima deve ser maior que zero.");
         }
@@ -57,13 +58,11 @@ public class PlanService {
             return new OperationResult(false, "O preço por mês deve ser um valor positivo.");
         }
 
-        // Verifica unicidade do nome
         if (nameExists(name.trim())) {
-            return new OperationResult(false, "Já existe um plano cadastrado com este nome.");
+            throw new DuplicatedPlanException(name.trim());
         }
 
         // Instancia a subclasse correta com base no tipo informado.
-        // Este é o ÚNICO ponto do sistema que conhece as subclasses concretas de Plan.
         Plan plan = createPlanByType(
             name.trim(),
             description.trim(),
@@ -80,8 +79,6 @@ public class PlanService {
 
     /**
      * Instancia a subclasse correta de Plan com base no PlanType.
-     * Centraliza a decisão de instanciação — nenhuma outra parte do sistema
-     * precisa conhecer as subclasses concretas.
      */
     private Plan createPlanByType(
         String name,
@@ -100,13 +97,11 @@ public class PlanService {
     }
 
     /**
-     * Busca um plano pelo nome (busca case-insensitive).
-     *
-     * @return OperationResult com o Plan encontrado em data (se sucesso)
+     * Busca um plano pelo nome (case-insensitive).
      */
     public OperationResult findByName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            return new OperationResult(false, "O nome é obrigatório para consulta.");
+            throw new RequiredFieldException("nome do plano");
         }
 
         for (Plan plan : plans) {
@@ -120,13 +115,10 @@ public class PlanService {
 
     /**
      * Atualiza o preço mensal de um plano.
-     * Não afeta matrículas já registradas (totalPrice é fixado na Enrollment).
-     *
-     * @return OperationResult com o Plan atualizado em data (se sucesso)
      */
     public OperationResult updatePrice(String name, double newPrice) {
         if (name == null || name.trim().isEmpty()) {
-            return new OperationResult(false, "O nome do plano é obrigatório.");
+            throw new RequiredFieldException("nome do plano");
         }
         if (newPrice <= 0) {
             return new OperationResult(false, "O novo preço deve ser um valor positivo.");
@@ -148,8 +140,6 @@ public class PlanService {
 
     /**
      * Lista todos os planos cadastrados.
-     *
-     * @return OperationResult com ArrayList<Plan> em data
      */
     public OperationResult listAll() {
         if (plans.isEmpty()) {

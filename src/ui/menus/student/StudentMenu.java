@@ -3,6 +3,7 @@ package ui.menus.student;
 import application.FitManager;
 import application.OperationResult;
 import domain.model.Student;
+import exceptions.FitManagerException;
 import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
@@ -13,8 +14,10 @@ import java.util.ArrayList;
  * Menu de gerenciamento de alunos.
  * Apresenta as opções e encaminha solicitações ao FitManager.
  *
- * Mantém referência à UserInterface (para interação) e ao FitManager
- * (para execução das operações).
+ * Tratamento de exceções: cada fluxo captura {@link FitManagerException} —
+ * categoria base das exceções não verificadas do sistema — e exibe a mensagem
+ * ao usuário via {@code ui.showError()}. Assim, nenhuma falha de validação ou
+ * de regra de negócio chega ao terminal como stack trace.
  */
 public class StudentMenu {
 
@@ -34,32 +37,36 @@ public class StudentMenu {
         boolean running = true;
 
         while (running) {
-            String menuOptions = "";
-            for (StudentMenuOption opt : StudentMenuOption.values()) {
-                menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
-            }
-            String input = ui.showMenu("> GERENCIAR ALUNOS", menuOptions);
+            try {
+                String menuOptions = "";
+                for (StudentMenuOption opt : StudentMenuOption.values()) {
+                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                }
+                String input = ui.showMenu("> GERENCIAR ALUNOS", menuOptions);
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + StudentMenuOption.values().length + ".");
-                continue;
-            }
+                if (input == null) { running = false; continue; }
+                if (!InputParser.isNumeric(input)) {
+                    ui.showError("Opção inválida. Digite um número de 1 a " + StudentMenuOption.values().length + ".");
+                    continue;
+                }
 
-            StudentMenuOption option = StudentMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                StudentMenuOption option = StudentMenuOption.fromNumber(Integer.parseInt(input.trim()));
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + StudentMenuOption.values().length + ".");
-                continue;
-            }
+                if (option == null) {
+                    ui.showError("Opção inválida. Escolha de 1 a " + StudentMenuOption.values().length + ".");
+                    continue;
+                }
 
-            switch (option) {
-                case CADASTRAR:     registerStudent();      break;
-                case CONSULTAR_CPF: findStudentByCpf();     break;
-                case EDITAR:        editStudent();          break;
-                case EXCLUIR:       removeStudent();        break;
-                case LISTAR:        listAllStudents();      break;
-                case VOLTAR:        running = false;        break;
+                switch (option) {
+                    case CADASTRAR:     registerStudent();      break;
+                    case CONSULTAR_CPF: findStudentByCpf();     break;
+                    case EDITAR:        editStudent();          break;
+                    case EXCLUIR:       removeStudent();        break;
+                    case LISTAR:        listAllStudents();      break;
+                    case VOLTAR:        running = false;        break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
