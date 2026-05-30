@@ -88,10 +88,10 @@ public class StudentMenu {
         String birthDate = ui.getInput("Digite a data de nascimento (dd/mm/aaaa):");
         if (birthDate == null) return;
 
-        OperationResult result = fitManager.registerStudent(name, cpf, contact, birthDate);
+        OperationResult<Student> result = fitManager.registerStudent(name, cpf, contact, birthDate);
 
         if (result.isSuccess()) {
-            Student student = (Student) result.getData();
+            Student student = result.getData();
             ui.showMessage(result.getMessage() + "\n\nDados:\n" + student.toString());
         } else {
             ui.showError(result.getMessage());
@@ -105,10 +105,10 @@ public class StudentMenu {
         String cpf = ui.getInput("Digite o CPF para consulta:");
         if (cpf == null) return;
 
-        OperationResult result = fitManager.findStudentByCpf(cpf);
+        OperationResult<Student> result = fitManager.findStudentByCpf(cpf);
 
         if (result.isSuccess()) {
-            Student student = (Student) result.getData();
+            Student student = result.getData();
             ui.showMessage("Aluno encontrado:\n\n" + student.toString());
         } else {
             ui.showError(result.getMessage());
@@ -124,13 +124,13 @@ public class StudentMenu {
         if (cpf == null) return;
 
         // Primeiro verifica se o aluno existe
-        OperationResult findResult = fitManager.findStudentByCpf(cpf);
+        OperationResult<Student> findResult = fitManager.findStudentByCpf(cpf);
         if (!findResult.isSuccess()) {
             ui.showError(findResult.getMessage());
             return;
         }
 
-        Student currentStudent = (Student) findResult.getData();
+        Student currentStudent = findResult.getData();
         ui.showMessage("Aluno encontrado:\n\n" + currentStudent.toString() +
                 "\n\nDeixe em branco os campos que não deseja alterar.");
 
@@ -140,10 +140,10 @@ public class StudentMenu {
         String newContact = ui.getInput("Novo contato (atual: " + currentStudent.getContact() + "):");
         if (newContact == null) return;
 
-        OperationResult result = fitManager.updateStudent(cpf, newName, newContact);
+        OperationResult<Student> result = fitManager.updateStudent(cpf, newName, newContact);
 
         if (result.isSuccess()) {
-            Student updated = (Student) result.getData();
+            Student updated = result.getData();
             ui.showMessage(result.getMessage() + "\n\nDados atualizados:\n" + updated.toString());
         } else {
             ui.showError(result.getMessage());
@@ -158,13 +158,13 @@ public class StudentMenu {
         if (cpf == null) return;
 
         // Mostra o aluno antes de confirmar a remoção
-        OperationResult findResult = fitManager.findStudentByCpf(cpf);
+        OperationResult<Student> findResult = fitManager.findStudentByCpf(cpf);
         if (!findResult.isSuccess()) {
             ui.showError(findResult.getMessage());
             return;
         }
 
-        Student student = (Student) findResult.getData();
+        Student student = findResult.getData();
         String confirm = ui.getInput(
                 "Confirma a remoção do aluno?\n\n" + student.toString() +
                         "\n\nDigite 'S' para confirmar ou qualquer outra tecla para cancelar:");
@@ -174,7 +174,7 @@ public class StudentMenu {
             return;
         }
 
-        OperationResult result = fitManager.removeStudent(cpf);
+        OperationResult<Void> result = fitManager.removeStudent(cpf);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -187,14 +187,14 @@ public class StudentMenu {
      * Fluxo de listagem de todos os alunos ativos.
      */
     private void listAllStudents() {
-        OperationResult result = fitManager.listAllStudents();
+        OperationResult<ArrayList<Student>> result = fitManager.listAllStudents();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Student> students = (ArrayList<Student>) result.getData();
+        ArrayList<Student> students = result.getData();
         String message = "> ALUNOS CADASTRADOS \n";
         message += "Total: " + students.size() + " aluno(s)\n\n";
 

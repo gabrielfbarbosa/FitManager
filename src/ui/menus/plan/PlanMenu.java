@@ -100,10 +100,10 @@ public class PlanMenu {
             return;
         }
 
-        OperationResult result = fitManager.registerPlan(name, description, type, minimumDuration, pricePerMonth);
+        OperationResult<Plan> result = fitManager.registerPlan(name, description, type, minimumDuration, pricePerMonth);
 
         if (result.isSuccess()) {
-            Plan plan = (Plan) result.getData();
+            Plan plan = result.getData();
             ui.showMessage(result.getMessage() + "\n\nDados:\n" + plan.toString());
         } else {
             ui.showError(result.getMessage());
@@ -117,10 +117,10 @@ public class PlanMenu {
         String name = ui.getInput("Digite o nome do plano para consulta:");
         if (name == null) return;
 
-        OperationResult result = fitManager.findPlanByName(name);
+        OperationResult<Plan> result = fitManager.findPlanByName(name);
 
         if (result.isSuccess()) {
-            Plan plan = (Plan) result.getData();
+            Plan plan = result.getData();
             ui.showMessage("Plano encontrado:\n\n" + plan.toString());
         } else {
             ui.showError(result.getMessage());
@@ -134,13 +134,13 @@ public class PlanMenu {
         String name = ui.getInput("Digite o nome do plano a atualizar:");
         if (name == null) return;
 
-        OperationResult findResult = fitManager.findPlanByName(name);
+        OperationResult<Plan> findResult = fitManager.findPlanByName(name);
         if (!findResult.isSuccess()) {
             ui.showError(findResult.getMessage());
             return;
         }
 
-        Plan plan = (Plan) findResult.getData();
+        Plan plan = findResult.getData();
         ui.showMessage("Plano encontrado:\n\n" + plan.toString());
 
         String newPriceStr = ui.getInput("Digite o novo preço por mês (ex: 99,90):");
@@ -152,10 +152,10 @@ public class PlanMenu {
             return;
         }
 
-        OperationResult result = fitManager.updatePlanPrice(name, newPrice);
+        OperationResult<Plan> result = fitManager.updatePlanPrice(name, newPrice);
 
         if (result.isSuccess()) {
-            Plan updated = (Plan) result.getData();
+            Plan updated = result.getData();
             ui.showMessage(result.getMessage() + "\n\nDados atualizados:\n" + updated.toString());
         } else {
             ui.showError(result.getMessage());
@@ -166,14 +166,14 @@ public class PlanMenu {
      * Fluxo de listagem de todos os planos cadastrados.
      */
     private void listAllPlans() {
-        OperationResult result = fitManager.listAllPlans();
+        OperationResult<ArrayList<Plan>> result = fitManager.listAllPlans();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Plan> plans = (ArrayList<Plan>) result.getData();
+        ArrayList<Plan> plans = result.getData();
         String message = "> PLANOS CADASTRADOS\n";
         message += "Total: " + plans.size() + " plano(s)\n\n";
 
