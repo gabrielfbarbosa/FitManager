@@ -34,28 +34,28 @@ public class PlanService {
     /**
      * Registra um novo plano no sistema.
      */
-    public OperationResult registerPlan(
+    public OperationResult<Plan> registerPlan(
             String name,
             String description,
             PlanType type,
             int minimumDuration,
             double pricePerMonth
     ) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new RequiredFieldException("nome do plano");
+        if (name == null || name.isBlank()) {
+            throw new RequiredFieldException("Nome do plano");
         }
-        if (description == null || description.trim().isEmpty()) {
-            throw new RequiredFieldException("descrição do plano");
+        if (description == null || description.isBlank()) {
+            throw new RequiredFieldException("Descrição do plano");
         }
         if (type == null) {
-            throw new RequiredFieldException("tipo do plano");
+            throw new RequiredFieldException("Tipo do plano");
         }
 
         if (minimumDuration <= 0) {
-            return new OperationResult(false, "A duração mínima deve ser maior que zero.");
+            return new OperationResult<>(false, "A duração mínima deve ser maior que zero.");
         }
         if (pricePerMonth <= 0) {
-            return new OperationResult(false, "O preço por mês deve ser um valor positivo.");
+            return new OperationResult<>(false, "O preço por mês deve ser um valor positivo.");
         }
 
         if (nameExists(name.trim())) {
@@ -73,7 +73,7 @@ public class PlanService {
 
         plans.add(plan);
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 "✅ Plano \"" + plan.getName() + "\" registrado com sucesso!", plan);
     }
 
@@ -99,54 +99,54 @@ public class PlanService {
     /**
      * Busca um plano pelo nome (case-insensitive).
      */
-    public OperationResult findByName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new RequiredFieldException("nome do plano");
+    public OperationResult<Plan> findByName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new RequiredFieldException("Nome do plano");
         }
 
         for (Plan plan : plans) {
             if (plan.getName().equalsIgnoreCase(name.trim())) {
-                return new OperationResult(true, "Plano encontrado.", plan);
+                return new OperationResult<>(true, "Plano encontrado.", plan);
             }
         }
 
-        return new OperationResult(false, "Nenhum plano encontrado com o nome informado.");
+        return new OperationResult<>(false, "Nenhum plano encontrado com o nome informado.");
     }
 
     /**
      * Atualiza o preço mensal de um plano.
      */
-    public OperationResult updatePrice(String name, double newPrice) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new RequiredFieldException("nome do plano");
+    public OperationResult<Plan> updatePrice(String name, double newPrice) {
+        if (name == null || name.isBlank()) {
+            throw new RequiredFieldException("Nome do plano");
         }
         if (newPrice <= 0) {
-            return new OperationResult(false, "O novo preço deve ser um valor positivo.");
+            return new OperationResult<>(false, "O novo preço deve ser um valor positivo.");
         }
 
         for (Plan plan : plans) {
             if (plan.getName().equalsIgnoreCase(name.trim())) {
                 double oldPrice = plan.getPricePerMonth();
                 plan.setPricePerMonth(newPrice);
-                return new OperationResult(true,
+                return new OperationResult<>(true,
                         "✅ Preço do plano \"" + plan.getName() + "\" atualizado de " +
                                 CurrencyFormatter.formatCurrency(oldPrice) + " para " +
                                 CurrencyFormatter.formatCurrency(newPrice) + ".", plan);
             }
         }
 
-        return new OperationResult(false, "Nenhum plano encontrado com o nome informado.");
+        return new OperationResult<>(false, "Nenhum plano encontrado com o nome informado.");
     }
 
     /**
      * Lista todos os planos cadastrados.
      */
-    public OperationResult listAll() {
+    public OperationResult<ArrayList<Plan>> listAll() {
         if (plans.isEmpty()) {
-            return new OperationResult(false, "Nenhum plano cadastrado no sistema.");
+            return new OperationResult<>(false, "Nenhum plano cadastrado no sistema.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 plans.size() + " plano(s) encontrado(s).", new ArrayList<>(plans));
     }
 

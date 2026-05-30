@@ -44,7 +44,7 @@ public class EnrollmentService {
     /**
      * Realiza a matrícula de um aluno em um plano.
      */
-    public OperationResult enroll(
+    public OperationResult<Enrollment> enroll(
             Student student,
             Plan plan,
             LocalDate startDate,
@@ -54,15 +54,15 @@ public class EnrollmentService {
             String paymentDescription,
             String[] paymentData
     ) {
-        OperationResult validationResult = validateEnrollmentParams(
+        OperationResult<Void> validationResult = validateEnrollmentParams(
                 student, plan, startDate, durationMonths);
         if (!validationResult.isSuccess()) {
-            return validationResult;
+            return new OperationResult<>(false, validationResult.getMessage());
         }
 
-        OperationResult paymentValidation = validatePaymentParams(initialAmount, paymentType, paymentData);
+        OperationResult<Void> paymentValidation = validatePaymentParams(initialAmount, paymentType, paymentData);
         if (!paymentValidation.isSuccess()) {
-            return paymentValidation;
+            return new OperationResult<>(false, paymentValidation.getMessage());
         }
 
         double totalPrice = plan.calculateTotalPrice(durationMonths);
@@ -96,45 +96,44 @@ public class EnrollmentService {
                 "Saldo Pendente: " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance()) + "\n\n" +
                 initialPayment.getPaymentSummary();
 
-        return new OperationResult(true, message, enrollment);
+        return new OperationResult<>(true, message, enrollment);
     }
 
     /**
      * Valida os parâmetros necessários para uma matrícula.
      * Argumentos nulos são tratados como campos obrigatórios ausentes.
      */
-    private OperationResult validateEnrollmentParams(
+    private OperationResult<Void> validateEnrollmentParams(
             Student student,
             Plan plan,
             LocalDate startDate,
             int durationMonths
     ) {
         if (student == null) {
-            throw new RequiredFieldException("aluno");
+            throw new RequiredFieldException("Aluno");
         }
         if (plan == null) {
-            throw new RequiredFieldException("plano");
+            throw new RequiredFieldException("Plano");
         }
         if (startDate == null) {
-            throw new RequiredFieldException("data de início");
+            throw new RequiredFieldException("Data de início");
         }
         if (startDate.isBefore(LocalDate.now())) {
-            return new OperationResult(false, "A data de início não pode ser anterior a hoje.");
+            return new OperationResult<>(false, "A data de início não pode ser anterior a hoje.");
         }
         if (durationMonths < plan.getMinimumDuration()) {
-            return new OperationResult(false,
+            return new OperationResult<>(false,
                     "A duração deve ser no mínimo " + plan.getMinimumDuration() +
                             (plan.getMinimumDuration() == 1 ? " mês" : " meses") + ".");
         }
-        return new OperationResult(true, "ok");
+        return new OperationResult<>(true, "ok");
     }
 
     /**
      * Instancia a subclasse correta de Payment com base no PaymentType.
      * As conversões {@code Integer.parseInt}/{@code Double.parseDouble} são
      * envoltas em {@code try-catch} para que qualquer {@link NumberFormatException}
-     * vinda de dados mal formados seja relançada como {@link InvalidFormatFieldException},
-     * mantendo a comunicação de falhas dentro da hierarquia do FitManager.
+     * vinda de dados mal formados seja relançada como {@link InvalidFormatFieldException}.
      */
     private Payment createPaymentByType(
             double amount,
@@ -154,7 +153,7 @@ public class EnrollmentService {
                     try {
                         installments = Integer.parseInt(paymentData[0]);
                     } catch (NumberFormatException e) {
-                        throw new InvalidFormatFieldException("número de parcelas", "número inteiro");
+                        throw new InvalidFormatFieldException("Número de parcelas", "Número inteiro");
                     }
                     creditDigits = paymentData[1];
                 }
@@ -168,7 +167,7 @@ public class EnrollmentService {
                     try {
                         amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
                     } catch (NumberFormatException e) {
-                        throw new InvalidFormatFieldException("valor recebido", "número decimal (ex.: 99,90)");
+                        throw new InvalidFormatFieldException("Valor recebido", "Número decimal (ex.: 99,90)");
                     }
                 }
                 return new CashPayment(amount, paymentDate, description, amountReceived);
@@ -180,14 +179,14 @@ public class EnrollmentService {
     /**
      * Cancela uma matrícula ativa.
      */
-    public OperationResult cancelEnrollment(int enrollmentCode) {
+    public OperationResult<Enrollment> cancelEnrollment(int enrollmentCode) {
         Enrollment enrollment = findByCode(enrollmentCode);
         if (enrollment == null) {
-            return new OperationResult(false, "Matrícula não encontrada.");
+            return new OperationResult<>(false, "Matrícula não encontrada.");
         }
 
         if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
-            return new OperationResult(false, "Esta matrícula já foi cancelada.");
+            return new OperationResult<>(false, "Esta matrícula já foi cancelada.");
         }
 
         double cancellationFee = enrollment.getPlan().getCancellationFee(enrollment);
@@ -217,13 +216,13 @@ public class EnrollmentService {
                     enrollment.getPlan().getTypeName() + ")";
         }
 
-        return new OperationResult(true, message, enrollment);
+        return new OperationResult<>(true, message, enrollment);
     }
 
     /**
      * Busca a matrícula ativa de um aluno pelo CPF.
      */
-    public OperationResult findActiveByStudentCpf(String cpf) {
+    public OperationResult<Enrollment> findActiveByStudentCpf(String cpf) {
         if (cpf == null || cpf.isBlank()) {
             throw new RequiredFieldException("CPF");
         }
@@ -231,11 +230,11 @@ public class EnrollmentService {
         for (Enrollment enrollment : enrollments) {
             if (enrollment.getStudentCpf().equals(cpf) &&
                     enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                return new OperationResult(true, "Matrícula encontrada.", enrollment);
+                return new OperationResult<>(true, "Matrícula encontrada.", enrollment);
             }
         }
 
-        return new OperationResult(false, "Nenhuma matrícula ativa encontrada para este aluno.");
+        return new OperationResult<>(false, "Nenhuma matrícula ativa encontrada para este aluno.");
     }
 
     /**
@@ -254,7 +253,7 @@ public class EnrollmentService {
     /**
      * Lista o histórico de matrículas de um aluno (ativas e canceladas).
      */
-    public OperationResult listHistoryByStudent(String cpf) {
+    public OperationResult<ArrayList<Enrollment>> listHistoryByStudent(String cpf) {
         if (cpf == null || cpf.isBlank()) {
             throw new RequiredFieldException("CPF");
         }
@@ -267,10 +266,10 @@ public class EnrollmentService {
         }
 
         if (studentEnrollments.isEmpty()) {
-            return new OperationResult(false, "Nenhuma matrícula encontrada para este aluno.");
+            return new OperationResult<>(false, "Nenhuma matrícula encontrada para este aluno.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 studentEnrollments.size() + " matrícula(s) encontrada(s).",
                 studentEnrollments);
     }
@@ -278,25 +277,25 @@ public class EnrollmentService {
     /**
      * Registra um novo pagamento para uma matrícula.
      */
-    public OperationResult registerPayment(
+    public OperationResult<Payment> registerPayment(
             int enrollmentCode,
             double amount,
             PaymentType paymentType,
             String description,
             String[] paymentData
     ) {
-        OperationResult validationResult = validatePaymentParams(amount, paymentType, paymentData);
+        OperationResult<Void> validationResult = validatePaymentParams(amount, paymentType, paymentData);
         if (!validationResult.isSuccess()) {
-            return validationResult;
+            return new OperationResult<>(false, validationResult.getMessage());
         }
 
         Enrollment enrollment = findByCode(enrollmentCode);
         if (enrollment == null) {
-            return new OperationResult(false, "Matrícula não encontrada.");
+            return new OperationResult<>(false, "Matrícula não encontrada.");
         }
 
         if (enrollment.getStatus() == EnrollmentStatus.CANCELLED) {
-            return new OperationResult(false, "Não é possível registrar pagamento em matrícula cancelada.");
+            return new OperationResult<>(false, "Não é possível registrar pagamento em matrícula cancelada.");
         }
 
         Payment payment = createPaymentByType(amount, LocalDateTime.now(), paymentType, description, paymentData);
@@ -309,7 +308,7 @@ public class EnrollmentService {
                 "Total pago até o momento " + CurrencyFormatter.formatCurrency(totalPaid) + "\n" +
                 "Saldo restante " + CurrencyFormatter.formatCurrency(enrollment.calculateBalance());
 
-        return new OperationResult(true, message, payment);
+        return new OperationResult<>(true, message, payment);
     }
 
     /**
@@ -318,12 +317,12 @@ public class EnrollmentService {
      * {@code try-catch} para relançar {@link NumberFormatException} como
      * {@link InvalidFormatFieldException}.
      */
-    private OperationResult validatePaymentParams(double amount, PaymentType paymentType, String[] paymentData) {
+    private OperationResult<Void> validatePaymentParams(double amount, PaymentType paymentType, String[] paymentData) {
         if (amount <= 0) {
-            return new OperationResult(false, "O valor do pagamento deve ser positivo.");
+            return new OperationResult<>(false, "O valor do pagamento deve ser positivo.");
         }
         if (paymentType == null) {
-            return new OperationResult(false, "O tipo de pagamento é obrigatório.");
+            return new OperationResult<>(false, "O tipo de pagamento é obrigatório.");
         }
 
         if (paymentType == PaymentType.CASH && paymentData != null && paymentData.length > 0) {
@@ -331,20 +330,20 @@ public class EnrollmentService {
             try {
                 amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
             } catch (NumberFormatException e) {
-                throw new InvalidFormatFieldException("valor recebido", "número decimal (ex.: 99,90)");
+                throw new InvalidFormatFieldException("Valor recebido", "Número decimal (ex.: 99,90)");
             }
             if (amountReceived < amount) {
-                return new OperationResult(false, "O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceived) +
+                return new OperationResult<>(false, "O valor recebido (" + CurrencyFormatter.formatCurrency(amountReceived) +
                         ") deve ser maior ou igual ao valor do pagamento (" + CurrencyFormatter.formatCurrency(amount) + ").");
             }
         }
-        return new OperationResult(true, "ok");
+        return new OperationResult<>(true, "ok");
     }
 
     /**
      * Lista matrículas que atendem ao critério de um filtro polimórfico.
      */
-    public OperationResult listByFilter(EnrollmentFilter filter) {
+    public OperationResult<ArrayList<Enrollment>> listByFilter(EnrollmentFilter filter) {
         ArrayList<Enrollment> filtered = new ArrayList<>();
         for (Enrollment enrollment : enrollments) {
             if (filter.matches(enrollment)) {
@@ -353,11 +352,11 @@ public class EnrollmentService {
         }
 
         if (filtered.isEmpty()) {
-            return new OperationResult(false,
+            return new OperationResult<>(false,
                     "Nenhuma matrícula encontrada para o filtro: " + filter.getDescription() + ".");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 filtered.size() + " matrícula(s) encontrada(s) — " + filter.getDescription() + ".",
                 filtered);
     }
@@ -377,12 +376,12 @@ public class EnrollmentService {
     /**
      * Lista todas as matrículas (ativas e canceladas).
      */
-    public OperationResult listAll() {
+    public OperationResult<ArrayList<Enrollment>> listAll() {
         if (enrollments.isEmpty()) {
-            return new OperationResult(false, "Nenhuma matrícula cadastrada no sistema.");
+            return new OperationResult<>(false, "Nenhuma matrícula cadastrada no sistema.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 enrollments.size() + " matrícula(s) encontrada(s).",
                 new ArrayList<>(enrollments));
     }
@@ -390,7 +389,7 @@ public class EnrollmentService {
     /**
      * Lista apenas as matrículas ativas.
      */
-    public OperationResult listActive() {
+    public OperationResult<ArrayList<Enrollment>> listActive() {
         ArrayList<Enrollment> activeEnrollments = new ArrayList<>();
         for (Enrollment enrollment : enrollments) {
             if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
@@ -399,10 +398,10 @@ public class EnrollmentService {
         }
 
         if (activeEnrollments.isEmpty()) {
-            return new OperationResult(false, "Nenhuma matrícula ativa encontrada.");
+            return new OperationResult<>(false, "Nenhuma matrícula ativa encontrada.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 activeEnrollments.size() + " matrícula(s) ativa(s) encontrada(s).",
                 activeEnrollments);
     }
@@ -410,7 +409,7 @@ public class EnrollmentService {
     /**
      * Lista apenas as matrículas com saldo pendente.
      */
-    public OperationResult listWithPendingBalance() {
+    public OperationResult<ArrayList<Enrollment>> listWithPendingBalance() {
         ArrayList<Enrollment> pendingEnrollments = new ArrayList<>();
         for (Enrollment enrollment : enrollments) {
             if (enrollment.calculateBalance() > 0) {
@@ -419,10 +418,10 @@ public class EnrollmentService {
         }
 
         if (pendingEnrollments.isEmpty()) {
-            return new OperationResult(false, "Nenhuma matrícula com saldo pendente.");
+            return new OperationResult<>(false, "Nenhuma matrícula com saldo pendente.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 pendingEnrollments.size() + " matrícula(s) com saldo pendente encontrada(s).",
                 pendingEnrollments);
     }
