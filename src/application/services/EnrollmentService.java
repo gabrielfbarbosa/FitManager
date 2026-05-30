@@ -6,15 +6,14 @@ import domain.model.enums.PaymentType;
 import domain.model.filters.EnrollmentFilter;
 import domain.model.Enrollment;
 import domain.model.payments.Payment;
-import domain.model.payments.PixPayment;
-import domain.model.payments.CashPayment;
-import domain.model.payments.CreditCardPayment;
-import domain.model.payments.DebitCardPayment;
+import domain.model.payments.PaymentFactory;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import exceptions.InvalidFormatFieldException;
 import exceptions.RequiredFieldException;
 import persistence.EnrollmentRepository;
+import persistence.PlanRepository;
+import persistence.StudentRepository;
 import util.CurrencyFormatter;
 
 import java.time.LocalDate;
@@ -54,6 +53,24 @@ public class EnrollmentService {
      */
     public EnrollmentRepository getRepository() {
         return repository;
+    }
+
+    /**
+     * Conecta o repositório de alunos ao repositório de matrículas, para que
+     * a leitura do arquivo de matrículas consiga validar os CPFs dos alunos.
+     * Chamado pelo {@code FitManager} na construção.
+     */
+    public void linkStudentRepository(StudentRepository studentRepository) {
+        this.repository.setStudentRepository(studentRepository);
+    }
+
+    /**
+     * Conecta o repositório de planos ao repositório de matrículas, para que
+     * a leitura do arquivo de matrículas consiga resolver as referências de
+     * {@link Plan} pelo nome. Chamado pelo {@code FitManager} na construção.
+     */
+    public void linkPlanRepository(PlanRepository planRepository) {
+        this.repository.setPlanRepository(planRepository);
     }
 
     /**
@@ -146,6 +163,9 @@ public class EnrollmentService {
 
     /**
      * Instancia a subclasse correta de Payment com base no PaymentType.
+     * Delega a decisão ao {@link PaymentFactory} — reaproveitado também pelo
+     * {@code EnrollmentRepository} ao reconstruir pagamentos da persistência.
+     *
      * As conversões {@code Integer.parseInt}/{@code Double.parseDouble} são
      * envoltas em {@code try-catch} para que qualquer {@link NumberFormatException}
      * vinda de dados mal formados seja relançada como {@link InvalidFormatFieldException}.
@@ -157,37 +177,13 @@ public class EnrollmentService {
             String description,
             String[] paymentData
     ) {
-        switch (paymentType) {
-            case PIX:
-                String pixKey = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "");
-                return new PixPayment(amount, paymentDate, description, pixKey);
-            case CREDIT_CARD:
-                int installments = 1;
-                String creditDigits = "0000";
-                if (paymentData != null && paymentData.length >= 2) {
-                    try {
-                        installments = Integer.parseInt(paymentData[0]);
-                    } catch (NumberFormatException e) {
-                        throw new InvalidFormatFieldException("Número de parcelas", "Número inteiro");
-                    }
-                    creditDigits = paymentData[1];
-                }
-                return new CreditCardPayment(amount, paymentDate, description, installments, creditDigits);
-            case DEBIT_CARD:
-                String debitDigits = (paymentData != null && paymentData.length > 0 ? paymentData[0] : "0000");
-                return new DebitCardPayment(amount, paymentDate, description, debitDigits);
-            case CASH:
-                double amountReceived = amount;
-                if (paymentData != null && paymentData.length > 0) {
-                    try {
-                        amountReceived = Double.parseDouble(paymentData[0].replace(",", "."));
-                    } catch (NumberFormatException e) {
-                        throw new InvalidFormatFieldException("Valor recebido", "Número decimal (ex.: 99,90)");
-                    }
-                }
-                return new CashPayment(amount, paymentDate, description, amountReceived);
-            default:
-                return new PixPayment(amount, paymentDate, description, "");
+        try {
+            return PaymentFactory.create(paymentType, amount, paymentDate, description, paymentData);
+        } catch (NumberFormatException e) {
+            if (paymentType == PaymentType.CREDIT_CARD) {
+                throw new InvalidFormatFieldException("Número de parcelas", "Número inteiro");
+            }
+            throw new InvalidFormatFieldException("Valor recebido", "Número decimal (ex.: 99,90)");
         }
     }
 

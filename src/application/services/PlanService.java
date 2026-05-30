@@ -3,10 +3,7 @@ package application.services;
 import application.OperationResult;
 import domain.model.enums.PlanType;
 import domain.model.plans.Plan;
-import domain.model.plans.MonthlyPlan;
-import domain.model.plans.QuarterlyPlan;
-import domain.model.plans.SemiAnnualPlan;
-import domain.model.plans.AnnualPlan;
+import domain.model.plans.PlanFactory;
 import exceptions.DuplicatedPlanException;
 import exceptions.RequiredFieldException;
 import persistence.PlanRepository;
@@ -77,37 +74,20 @@ public class PlanService {
         }
 
         // Instancia a subclasse correta com base no tipo informado.
-        Plan plan = createPlanByType(
-            name.trim(),
-            description.trim(),
-            type,
-            minimumDuration,
-            pricePerMonth
+        // A decisão de qual subclasse criar reside em PlanFactory — reaproveitada
+        // também pelo PlanRepository ao reconstruir planos da persistência.
+        Plan plan = PlanFactory.create(
+                type,
+                name.trim(),
+                description.trim(),
+                minimumDuration,
+                pricePerMonth
         );
 
         repository.add(plan);
 
         return new OperationResult<>(true,
                 "✅ Plano \"" + plan.getName() + "\" registrado com sucesso!", plan);
-    }
-
-    /**
-     * Instancia a subclasse correta de Plan com base no PlanType.
-     */
-    private Plan createPlanByType(
-        String name,
-        String description,
-        PlanType type,
-        int minimumDuration,
-        double pricePerMonth
-    ) {
-        return switch (type) {
-            case MONTHLY -> new MonthlyPlan(name, description, minimumDuration, pricePerMonth);
-            case QUARTERLY -> new QuarterlyPlan(name, description, minimumDuration, pricePerMonth);
-            case SEMI_ANNUAL -> new SemiAnnualPlan(name, description, minimumDuration, pricePerMonth);
-            case ANNUAL -> new AnnualPlan(name, description, minimumDuration, pricePerMonth);
-            default -> new MonthlyPlan(name, description, minimumDuration, pricePerMonth);
-        };
     }
 
     /**
