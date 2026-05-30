@@ -99,14 +99,14 @@ public class ReportsMenu {
      * Lista todos os alunos ativos usando getSummary() para exibição compacta.
      */
     private void listAllStudents() {
-        OperationResult result = fitManager.listAllStudents();
+        OperationResult<ArrayList<Student>> result = fitManager.listAllStudents();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Student> students = (ArrayList<Student>) result.getData();
+        ArrayList<Student> students = result.getData();
         StringBuilder message = new StringBuilder("> TODOS OS ALUNOS\n");
         message.append("Total: ").append(students.size()).append(" aluno(s)\n\n");
 
@@ -124,14 +124,14 @@ public class ReportsMenu {
      * Lista todos os planos cadastrados usando getSummary() para exibição compacta.
      */
     private void listAllPlans() {
-        OperationResult result = fitManager.listAllPlans();
+        OperationResult<ArrayList<Plan>> result = fitManager.listAllPlans();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Plan> plans = (ArrayList<Plan>) result.getData();
+        ArrayList<Plan> plans = result.getData();
         StringBuilder message = new StringBuilder("> TODOS OS PLANOS\n");
         message.append("Total: ").append(plans.size()).append(" plano(s)\n\n");
 
@@ -149,14 +149,14 @@ public class ReportsMenu {
      * Lista todas as matrículas (ativas e canceladas) usando getSummary().
      */
     private void listAllEnrollments() {
-        OperationResult result = fitManager.listAllEnrollments();
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listAllEnrollments();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         StringBuilder message = new StringBuilder("> TODAS AS MATRÍCULAS\n");
         message.append("Total: ").append(enrollments.size()).append(" matrícula(s)\n\n");
 
@@ -184,10 +184,10 @@ public class ReportsMenu {
             return;
         }
 
-        OperationResult result = fitManager.findStudentByCpf(cpf);
+        OperationResult<Student> result = fitManager.findStudentByCpf(cpf);
 
         if (result.isSuccess()) {
-            Student student = (Student) result.getData();
+            Student student = result.getData();
             ui.showMessage("Aluno encontrado:\n\n" + student.toString());
         } else {
             ui.showError(result.getMessage());
@@ -204,10 +204,10 @@ public class ReportsMenu {
             return;
         }
 
-        OperationResult result = fitManager.findPlanByName(name);
+        OperationResult<Plan> result = fitManager.findPlanByName(name);
 
         if (result.isSuccess()) {
-            Plan plan = (Plan) result.getData();
+            Plan plan = result.getData();
             ui.showMessage("Plano encontrado:\n\n" + plan.toString());
         } else {
             ui.showError(result.getMessage());
@@ -224,10 +224,10 @@ public class ReportsMenu {
             return;
         }
 
-        OperationResult result = fitManager.findActiveEnrollmentByStudent(cpf);
+        OperationResult<Enrollment> result = fitManager.findActiveEnrollmentByStudent(cpf);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage("Matrícula ativa encontrada:\n\n" + enrollment.toString());
         } else {
             ui.showError(result.getMessage());
@@ -245,14 +245,14 @@ public class ReportsMenu {
      * @param filter filtro polimórfico a ser aplicado
      */
     private void showFilteredEnrollments(EnrollmentFilter filter) {
-        OperationResult result = fitManager.listEnrollmentsByFilter(filter);
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listEnrollmentsByFilter(filter);
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         StringBuilder message = new StringBuilder();
         message.append("> ").append(filter.getDescription().toUpperCase()).append("\n");
         message.append("Total: ").append(enrollments.size()).append(" matrícula(s)\n\n");
@@ -280,7 +280,7 @@ public class ReportsMenu {
         }
 
         String input = ui.getInput(options.toString());
-        if (input == null || input.trim().isEmpty()) {
+        if (input == null || input.isBlank()) {
             ui.showError("Selecione um plano");
             return;
         }
@@ -308,7 +308,7 @@ public class ReportsMenu {
      * Exibe estatísticas gerais do sistema.
      */
     private void showStatistics() {
-        OperationResult result = fitManager.getSystemStatistics();
+        OperationResult<Void> result = fitManager.getSystemStatistics();
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());

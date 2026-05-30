@@ -7,6 +7,7 @@ import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PlanType;
 import domain.model.enums.PaymentType;
 import domain.model.filters.EnrollmentFilter;
+import domain.model.payments.Payment;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
@@ -57,7 +58,7 @@ public class FitManager {
      * Registra um novo aluno.
      * Delega a validação e criação ao StudentService.
      */
-    public OperationResult registerStudent(
+    public OperationResult<Student> registerStudent(
             String name,
             String cpf,
             String contact,
@@ -69,14 +70,14 @@ public class FitManager {
     /**
      * Consulta um aluno pelo CPF.
      */
-    public OperationResult findStudentByCpf(String cpf) {
+    public OperationResult<Student> findStudentByCpf(String cpf) {
         return studentService.findByCpf(cpf);
     }
 
     /**
      * Atualiza os dados de um aluno (nome e/ou contato).
      */
-    public OperationResult updateStudent(String cpf, String newName, String newContact) {
+    public OperationResult<Student> updateStudent(String cpf, String newName, String newContact) {
         return studentService.updateStudent(cpf, newName, newContact);
     }
 
@@ -85,16 +86,16 @@ public class FitManager {
      * Coordena com o EnrollmentService para impedir remoção de aluno com
      * matrícula ativa — situação que é lançada como {@link StudentWithActiveEnrollmentException}.
      */
-    public OperationResult removeStudent(String cpf) {
+    public OperationResult<Void> removeStudent(String cpf) {
         if (cpf == null || cpf.isBlank()) {
             throw new RequiredFieldException("CPF");
         }
         String cleanCpf = Student.cleanCpf(cpf);
 
         // Verifica se o aluno existe e está ativo
-        OperationResult findResult = studentService.findByCpf(cleanCpf);
+        OperationResult<Student> findResult = studentService.findByCpf(cleanCpf);
         if (!findResult.isSuccess()) {
-            return findResult;
+            return new OperationResult<>(false, findResult.getMessage());
         }
 
         // Verifica se o aluno possui matrícula ativa
@@ -108,7 +109,7 @@ public class FitManager {
     /**
      * Lista todos os alunos ativos.
      */
-    public OperationResult listAllStudents() {
+    public OperationResult<ArrayList<Student>> listAllStudents() {
         return studentService.listAll();
     }
 
@@ -119,15 +120,20 @@ public class FitManager {
     /**
      * Registra um novo plano.
      */
-    public OperationResult registerPlan(String name, String description, PlanType type,
-                                        int minimumDuration, double pricePerMonth) {
+    public OperationResult<Plan> registerPlan(
+            String name,
+            String description,
+            PlanType type,
+            int minimumDuration,
+            double pricePerMonth
+    ) {
         return planService.registerPlan(name, description, type, minimumDuration, pricePerMonth);
     }
 
     /**
      * Consulta um plano pelo nome.
      */
-    public OperationResult findPlanByName(String name) {
+    public OperationResult<Plan> findPlanByName(String name) {
         return planService.findByName(name);
     }
 
@@ -135,14 +141,14 @@ public class FitManager {
      * Atualiza o preço mensal de um plano.
      * Não afeta matrículas já registradas — totalPrice é fixado na criação do Enrollment.
      */
-    public OperationResult updatePlanPrice(String name, double newPrice) {
+    public OperationResult<Plan> updatePlanPrice(String name, double newPrice) {
         return planService.updatePrice(name, newPrice);
     }
 
     /**
      * Lista todos os planos cadastrados.
      */
-    public OperationResult listAllPlans() {
+    public OperationResult<ArrayList<Plan>> listAllPlans() {
         return planService.listAll();
     }
 
@@ -156,7 +162,7 @@ public class FitManager {
      * e relança como {@link InvalidFormatFieldException}, mantendo a falha
      * dentro da hierarquia do FitManager para o catch único do menu.
      */
-    public OperationResult enrollStudent(
+    public OperationResult<Enrollment> enrollStudent(
             String cpf,
             String planName,
             String startDateStr,
@@ -179,14 +185,14 @@ public class FitManager {
 
         String cleanCpf = Student.cleanCpf(cpf);
 
-        OperationResult studentResult = studentService.findByCpf(cleanCpf);
+        OperationResult<Student> studentResult = studentService.findByCpf(cleanCpf);
         if (!studentResult.isSuccess()) {
-            return studentResult;
+            return new OperationResult<>(false, studentResult.getMessage());
         }
 
-        OperationResult planResult = planService.findByName(planName);
+        OperationResult<Plan> planResult = planService.findByName(planName);
         if (!planResult.isSuccess()) {
-            return planResult;
+            return new OperationResult<>(false, planResult.getMessage());
         }
 
         if (enrollmentService.hasActiveEnrollment(cleanCpf)) {
@@ -197,11 +203,11 @@ public class FitManager {
         try {
             startDate = DateFormatter.parseDate(startDateStr);
         } catch (DateTimeParseException e) {
-            throw new InvalidFormatFieldException("Data de início", DateFormatter.DATE_PATTERN + " (ex.: 30/07/1993)");
+            throw new InvalidFormatFieldException("Data de início", DateFormatter.DATE_PATTERN + " (ex.: 13/08/2026)");
         }
 
-        Student student = (Student) studentResult.getData();
-        Plan plan = (Plan) planResult.getData();
+        Student student = studentResult.getData();
+        Plan plan = planResult.getData();
         return enrollmentService.enroll(student, plan, startDate, durationMonths,
                 initialAmount, paymentType, paymentDescription, paymentData);
     }
@@ -209,14 +215,14 @@ public class FitManager {
     /**
      * Cancela uma matrícula ativa.
      */
-    public OperationResult cancelEnrollment(int enrollmentCode) {
+    public OperationResult<Enrollment> cancelEnrollment(int enrollmentCode) {
         return enrollmentService.cancelEnrollment(enrollmentCode);
     }
 
     /**
      * Consulta a matrícula ativa de um aluno pelo CPF.
      */
-    public OperationResult findActiveEnrollmentByStudent(String cpf) {
+    public OperationResult<Enrollment> findActiveEnrollmentByStudent(String cpf) {
         if (cpf == null || cpf.isBlank()) {
             throw new RequiredFieldException("CPF");
         }
@@ -227,7 +233,7 @@ public class FitManager {
     /**
      * Lista o histórico de matrículas de um aluno.
      */
-    public OperationResult listEnrollmentHistory(String cpf) {
+    public OperationResult<ArrayList<Enrollment>> listEnrollmentHistory(String cpf) {
         if (cpf == null || cpf.isBlank()) {
             throw new RequiredFieldException("CPF");
         }
@@ -240,7 +246,7 @@ public class FitManager {
      *
      * @param paymentData dados adicionais do pagamento (variam por tipo)
      */
-    public OperationResult registerPayment(
+    public OperationResult<Payment> registerPayment(
             int enrollmentCode,
             double amount,
             PaymentType paymentType,
@@ -265,36 +271,37 @@ public class FitManager {
      * @param filter filtro polimórfico a ser aplicado
      * @return OperationResult com ArrayList<Enrollment> em data
      */
-    public OperationResult listEnrollmentsByFilter(EnrollmentFilter filter) {
+    public OperationResult<ArrayList<Enrollment>> listEnrollmentsByFilter(EnrollmentFilter filter) {
         return enrollmentService.listByFilter(filter);
     }
 
     /**
      * Lista todas as matrículas (ativas e canceladas).
      */
-    public OperationResult listAllEnrollments() {
+    public OperationResult<ArrayList<Enrollment>> listAllEnrollments() {
         return enrollmentService.listAll();
     }
 
     /**
      * Calcula e retorna estatísticas gerais do sistema.
+     * O texto formatado é colocado na mensagem do OperationResult; não há
+     * dado adicional, daí o uso de {@code OperationResult<Void>}.
      */
-    public OperationResult getSystemStatistics() {
-        OperationResult allStudents = listAllStudents();
-        OperationResult allEnrollments = listAllEnrollments();
-        OperationResult allPlans = listAllPlans();
+    public OperationResult<Void> getSystemStatistics() {
+        OperationResult<ArrayList<Student>> allStudents = listAllStudents();
+        OperationResult<ArrayList<Enrollment>> allEnrollments = listAllEnrollments();
+        OperationResult<ArrayList<Plan>> allPlans = listAllPlans();
 
         int totalStudents = 0;
         if (allStudents.isSuccess()) {
-            ArrayList<Student> students = (ArrayList<Student>) allStudents.getData();
-            totalStudents = students.size();
+            totalStudents = allStudents.getData().size();
         }
 
         int totalEnrollments = 0;
         int totalActiveEnrollments = 0;
         double totalBalance = 0;
         if (allEnrollments.isSuccess()) {
-            ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) allEnrollments.getData();
+            ArrayList<Enrollment> enrollments = allEnrollments.getData();
             totalEnrollments = enrollments.size();
             for (Enrollment enrollment : enrollments) {
                 if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
@@ -306,8 +313,7 @@ public class FitManager {
 
         int totalPlans = 0;
         if (allPlans.isSuccess()) {
-            ArrayList<Plan> plans = (ArrayList<Plan>) allPlans.getData();
-            totalPlans = plans.size();
+            totalPlans = allPlans.getData().size();
         }
 
         String stats = "ESTATÍSTICAS DO SISTEMA\n\n" +
@@ -317,6 +323,6 @@ public class FitManager {
                 "Matrículas Ativas: " + totalActiveEnrollments + "\n" +
                 "Saldo Pendente Total: " + CurrencyFormatter.formatCurrency(totalBalance);
 
-        return new OperationResult(true, stats);
+        return new OperationResult<>(true, stats);
     }
 }

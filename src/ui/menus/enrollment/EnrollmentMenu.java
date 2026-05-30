@@ -4,6 +4,7 @@ import application.FitManager;
 import application.OperationResult;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
+import domain.model.payments.Payment;
 import exceptions.FitManagerException;
 import ui.screen.InputParser;
 import ui.screen.UserInterface;
@@ -112,11 +113,11 @@ public class EnrollmentMenu {
         String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
 
-        OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
+        OperationResult<Enrollment> result = fitManager.enrollStudent(cpf, planName, startDateStr,
                 durationMonths, initialAmount, paymentType, paymentDescription, paymentData);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage(result.getMessage() + "\n\n" + buildEnrollmentSummary(enrollment));
         } else {
             ui.showError(result.getMessage());
@@ -130,10 +131,10 @@ public class EnrollmentMenu {
         String cpf = ui.getInput("Digite o CPF do aluno:");
         if (cpf == null) return;
 
-        OperationResult result = fitManager.findActiveEnrollmentByStudent(cpf);
+        OperationResult<Enrollment> result = fitManager.findActiveEnrollmentByStudent(cpf);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage("Matrícula ativa encontrada:\n\n" + buildEnrollmentSummary(enrollment));
         } else {
             ui.showError(result.getMessage());
@@ -147,14 +148,14 @@ public class EnrollmentMenu {
         String cpf = ui.getInput("Digite o CPF do aluno:");
         if (cpf == null) return;
 
-        OperationResult result = fitManager.listEnrollmentHistory(cpf);
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listEnrollmentHistory(cpf);
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         String message = "> HISTÓRICO DE MATRÍCULAS\n";
         message += "Total: " + enrollments.size() + " matrícula(s)\n\n";
 
@@ -185,7 +186,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        OperationResult result = fitManager.cancelEnrollment(code);
+        OperationResult<Enrollment> result = fitManager.cancelEnrollment(code);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -221,7 +222,7 @@ public class EnrollmentMenu {
         String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (description == null) description = "Pagamento adicional";
 
-        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
+        OperationResult<Payment> result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
