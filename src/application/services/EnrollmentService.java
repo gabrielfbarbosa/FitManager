@@ -14,6 +14,7 @@ import domain.model.plans.Plan;
 import domain.model.Student;
 import exceptions.InvalidFormatFieldException;
 import exceptions.RequiredFieldException;
+import persistence.EnrollmentRepository;
 import util.CurrencyFormatter;
 
 import java.time.LocalDate;
@@ -21,8 +22,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 /**
- * Serviço responsável por manter a coleção de matrículas em memória
- * e implementar as operações específicas da entidade Enrollment.
+ * Serviço responsável pelas operações específicas da entidade Enrollment.
+ *
+ * Delega o armazenamento e a persistência da coleção ao
+ * {@link EnrollmentRepository}, composto como atributo interno (relação de
+ * composição). O serviço cuida das regras de negócio (validação de parâmetros
+ * da matrícula, regras de pagamento, taxa de cancelamento via polimorfismo);
+ * o repositório cuida da coleção e — a partir da Etapa 4 — da persistência em
+ * arquivo, incluindo o estado do contador estático {@code Enrollment.nextCode}.
  *
  * Política de comunicação de falhas:
  * - Argumentos obrigatórios nulos (aluno, plano, data) → {@link RequiredFieldException}.
@@ -35,10 +42,18 @@ import java.util.ArrayList;
  */
 public class EnrollmentService {
 
-    private ArrayList<Enrollment> enrollments;
+    private EnrollmentRepository repository;
 
     public EnrollmentService() {
-        this.enrollments = new ArrayList<>();
+        this.repository = new EnrollmentRepository();
+    }
+
+    /**
+     * Expõe o repositório composto.
+     * Utilizado pelo orquestrador (FitManager) para coordenar persistência.
+     */
+    public EnrollmentRepository getRepository() {
+        return repository;
     }
 
     /**
@@ -85,7 +100,7 @@ public class EnrollmentService {
         );
         enrollment.addPayment(initialPayment);
 
-        enrollments.add(enrollment);
+        repository.add(enrollment);
 
         String message = "✅ Matrícula realizada com sucesso!\n\n" +
                 "Código: " + enrollment.getCode() + "\n" +
@@ -227,7 +242,7 @@ public class EnrollmentService {
             throw new RequiredFieldException("CPF");
         }
 
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.getStudentCpf().equals(cpf) &&
                     enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                 return new OperationResult<>(true, "Matrícula encontrada.", enrollment);
@@ -241,7 +256,7 @@ public class EnrollmentService {
      * Verifica se um aluno possui matrícula ativa.
      */
     public boolean hasActiveEnrollment(String cpf) {
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.getStudentCpf().equals(cpf) &&
                     enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                 return true;
@@ -259,7 +274,7 @@ public class EnrollmentService {
         }
 
         ArrayList<Enrollment> studentEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.getStudentCpf().equals(cpf)) {
                 studentEnrollments.add(enrollment);
             }
@@ -345,7 +360,7 @@ public class EnrollmentService {
      */
     public OperationResult<ArrayList<Enrollment>> listByFilter(EnrollmentFilter filter) {
         ArrayList<Enrollment> filtered = new ArrayList<>();
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (filter.matches(enrollment)) {
                 filtered.add(enrollment);
             }
@@ -365,7 +380,7 @@ public class EnrollmentService {
      * Busca uma matrícula pelo código.
      */
     public Enrollment findByCode(int code) {
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.getCode() == code) {
                 return enrollment;
             }
@@ -377,13 +392,13 @@ public class EnrollmentService {
      * Lista todas as matrículas (ativas e canceladas).
      */
     public OperationResult<ArrayList<Enrollment>> listAll() {
-        if (enrollments.isEmpty()) {
+        if (repository.isEmpty()) {
             return new OperationResult<>(false, "Nenhuma matrícula cadastrada no sistema.");
         }
 
         return new OperationResult<>(true,
-                enrollments.size() + " matrícula(s) encontrada(s).",
-                new ArrayList<>(enrollments));
+                repository.count() + " matrícula(s) encontrada(s).",
+                repository.listAll());
     }
 
     /**
@@ -391,7 +406,7 @@ public class EnrollmentService {
      */
     public OperationResult<ArrayList<Enrollment>> listActive() {
         ArrayList<Enrollment> activeEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
                 activeEnrollments.add(enrollment);
             }
@@ -411,7 +426,7 @@ public class EnrollmentService {
      */
     public OperationResult<ArrayList<Enrollment>> listWithPendingBalance() {
         ArrayList<Enrollment> pendingEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : enrollments) {
+        for (Enrollment enrollment : repository.listAll()) {
             if (enrollment.calculateBalance() > 0) {
                 pendingEnrollments.add(enrollment);
             }
