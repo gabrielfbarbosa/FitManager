@@ -181,7 +181,7 @@ public class DataMock {
     private static void mockEnrollments(FitManager fm) {
 
         // Matrícula 1 — Carlos / ativa / parcial (3 de 12 parcelas pagas)
-        OperationResult r1 = fm.enrollStudent(
+        OperationResult<Enrollment> r1 = fm.enrollStudent(
                 "52998224725",
                 "Plano Anual",
                 "13/08/2026",
@@ -192,7 +192,7 @@ public class DataMock {
                 new String[]{"carlos.silva@email.com"}
         );
         if (r1.isSuccess()) {
-            int code = ((Enrollment) r1.getData()).getCode();
+            int code = r1.getData().getCode();
             fm.registerPayment(code, 69.90, PaymentType.PIX,        "2ª parcela — maio", new String[]{"carlos.silva@email.com"});
             fm.registerPayment(code, 69.90, PaymentType.DEBIT_CARD, "3ª parcela — junho", new String[]{"4321"});
         }
@@ -210,7 +210,7 @@ public class DataMock {
         );
 
         // Matrícula 3 — Bruno / ativa / quitada
-        OperationResult r3 = fm.enrollStudent(
+        OperationResult<Enrollment> r3 = fm.enrollStudent(
                 "87748248800",
                 "Plano Trimestral",
                 "13/10/2026",
@@ -221,13 +221,13 @@ public class DataMock {
                 new String[]{"1", "5678"}
         );
         if (r3.isSuccess()) {
-            int code = ((Enrollment) r3.getData()).getCode();
+            int code = r3.getData().getCode();
             fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "2ª parcela", new String[]{"1", "5678"});
             fm.registerPayment(code, 89.90, PaymentType.CREDIT_CARD, "3ª parcela — quitado", new String[]{"1", "5678"});
         }
 
         // Matrícula 4 — Fernanda / cancelada
-        OperationResult r4 = fm.enrollStudent(
+        OperationResult<Enrollment> r4 = fm.enrollStudent(
                 "34650463238",
                 "Plano Semestral",
                 "13/11/2026",
@@ -238,11 +238,11 @@ public class DataMock {
                 new String[]{"fernanda.souza@email.com"}
         );
         if (r4.isSuccess()) {
-            fm.cancelEnrollment(((Enrollment) r4.getData()).getCode());
+            fm.cancelEnrollment(r4.getData().getCode());
         }
 
         // Matrícula 5 — Juliana / cancelada, depois a aluna será inativada
-        OperationResult r5 = fm.enrollStudent(
+        OperationResult<Enrollment> r5 = fm.enrollStudent(
                 "07859546434",
                 "Plano Mensal",
                 "13/12/2026",
@@ -253,7 +253,7 @@ public class DataMock {
                 new String[]{"juliana.lima@email.com"}
         );
         if (r5.isSuccess()) {
-            fm.cancelEnrollment(((Enrollment) r5.getData()).getCode());
+            fm.cancelEnrollment(r5.getData().getCode());
         }
 
         // Matrícula 6 — Fernanda novamente, agora ativa
@@ -270,7 +270,7 @@ public class DataMock {
         );
 
         // Patrícia / Plano Semestral / ativa / 3 de 6 parcelas pagas
-        OperationResult r7 = fm.enrollStudent(
+        OperationResult<Enrollment> r7 = fm.enrollStudent(
                 "12345678909",
                 "Plano Semestral",
                 "15/04/2026",
@@ -281,13 +281,13 @@ public class DataMock {
                 new String[]{"patricia.santos@email.com"}
         );
         if (r7.isSuccess()) {
-            int code = ((Enrollment) r7.getData()).getCode();
+            int code = r7.getData().getCode();
             fm.registerPayment(code, 79.90, PaymentType.PIX,         "2ª parcela — maio", new String[]{"patricia.santos@email.com"});
             fm.registerPayment(code, 79.90, PaymentType.DEBIT_CARD,  "3ª parcela — junho", new String[]{"4321"});
         }
 
         // Lucas / Plano Mensal / ativa / totalmente quitada
-        OperationResult r8 = fm.enrollStudent(
+        OperationResult<Enrollment> r8 = fm.enrollStudent(
                 "98765432100",
                 "Plano Mensal",
                 "15/04/2026",
@@ -299,7 +299,7 @@ public class DataMock {
         );
 
         // Mariana / 1ª matrícula (Plano Trimestral) → cancelada
-        OperationResult r9 = fm.enrollStudent(
+        OperationResult<Enrollment> r9 = fm.enrollStudent(
                 "11122233396",
                 "Plano Trimestral",
                 "15/04/2026",
@@ -310,12 +310,12 @@ public class DataMock {
                 new String[]{"100,00"}
         );
         if (r9.isSuccess()) {
-            int code = ((Enrollment) r9.getData()).getCode();
+            int code = r9.getData().getCode();
             fm.cancelEnrollment(code);
         }
 
         // Mariana / 2ª matrícula (Plano Anual) → ativa / parcialmente paga
-        OperationResult r10 = fm.enrollStudent(
+        OperationResult<Enrollment> r10 = fm.enrollStudent(
                 "11122233396",
                 "Plano Anual",
                 "15/04/2026",
@@ -326,7 +326,7 @@ public class DataMock {
                 new String[]{"mariana.oliveira@email.com"}
         );
         if (r10.isSuccess()) {
-            int code = ((Enrollment) r10.getData()).getCode();
+            int code = r10.getData().getCode();
             fm.registerPayment(code, 69.90, PaymentType.PIX, "2ª parcela", new String[]{"mariana.oliveira@email.com"});
         }
 
