@@ -4,6 +4,7 @@ import application.OperationResult;
 import domain.model.Student;
 import exceptions.InvalidFormatFieldException;
 import exceptions.RequiredFieldException;
+import persistence.StudentRepository;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -12,10 +13,13 @@ import java.util.ArrayList;
 import util.DateFormatter;
 
 /**
- * Serviço responsável por manter a coleção de alunos em memória
- * e implementar as operações específicas da entidade Student.
+ * Serviço responsável pelas operações específicas da entidade Student.
  *
- * Conhece apenas objetos do seu próprio domínio.
+ * Conhece apenas objetos do seu próprio domínio. Delega o armazenamento
+ * e a persistência da coleção ao {@link StudentRepository}, composto como
+ * atributo interno (relação de composição). O serviço cuida das regras de
+ * negócio (validações de campo, formato do CPF, unicidade); o repositório
+ * cuida da coleção e da persistência em arquivo.
  *
  * Política de comunicação de falhas:
  * - Campos obrigatórios vazios → {@link RequiredFieldException}.
@@ -25,10 +29,18 @@ import util.DateFormatter;
  */
 public class StudentService {
 
-    private ArrayList<Student> students;
+    private StudentRepository repository;
 
     public StudentService() {
-        this.students = new ArrayList<>();
+        this.repository = new StudentRepository();
+    }
+
+    /**
+     * Expõe o repositório composto.
+     * Utilizado pelo orquestrador (FitManager) para coordenar persistência.
+     */
+    public StudentRepository getRepository() {
+        return repository;
     }
 
     /**
@@ -69,7 +81,7 @@ public class StudentService {
         }
 
         Student student = new Student(name, cleanCpf, contact, birthDate);
-        students.add(student);
+        repository.add(student);
 
         return new OperationResult<>(true,
                 "✅ Aluno " + student.getName() + " registrado com sucesso!", student);
@@ -172,7 +184,7 @@ public class StudentService {
      */
     public OperationResult<ArrayList<Student>> listAll() {
         ArrayList<Student> activeStudents = new ArrayList<>();
-        for (Student student : students) {
+        for (Student student : repository.listAll()) {
             if (student.isActive()) {
                 activeStudents.add(student);
             }
@@ -190,7 +202,7 @@ public class StudentService {
      * Verifica se existe um aluno ativo com o CPF informado.
      */
     public Student hasActiveStudent(String cpf) {
-        for (Student student : students) {
+        for (Student student : repository.listAll()) {
             if (student.getCpf().equals(cpf) && student.isActive()) {
                 return student;
             }

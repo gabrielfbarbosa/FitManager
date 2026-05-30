@@ -9,13 +9,19 @@ import domain.model.plans.SemiAnnualPlan;
 import domain.model.plans.AnnualPlan;
 import exceptions.DuplicatedPlanException;
 import exceptions.RequiredFieldException;
+import persistence.PlanRepository;
 import util.CurrencyFormatter;
 
 import java.util.ArrayList;
 
 /**
- * Serviço responsável por manter a coleção de planos em memória
- * e implementar as operações específicas da entidade Plan.
+ * Serviço responsável pelas operações específicas da entidade Plan.
+ *
+ * Delega o armazenamento e a persistência da coleção ao {@link PlanRepository},
+ * composto como atributo interno (relação de composição). O serviço cuida das
+ * regras de negócio (validações de campo, unicidade de nome, instanciação da
+ * subclasse concreta a partir do {@code PlanType}); o repositório cuida da
+ * coleção e da persistência em arquivo.
  *
  * Política de comunicação de falhas:
  * - Campos obrigatórios vazios → {@link RequiredFieldException}.
@@ -25,10 +31,18 @@ import java.util.ArrayList;
  */
 public class PlanService {
 
-    private ArrayList<Plan> plans;
+    private PlanRepository repository;
 
     public PlanService() {
-        this.plans = new ArrayList<>();
+        this.repository = new PlanRepository();
+    }
+
+    /**
+     * Expõe o repositório composto.
+     * Utilizado pelo orquestrador (FitManager) para coordenar persistência.
+     */
+    public PlanRepository getRepository() {
+        return repository;
     }
 
     /**
@@ -71,7 +85,7 @@ public class PlanService {
             pricePerMonth
         );
 
-        plans.add(plan);
+        repository.add(plan);
 
         return new OperationResult<>(true,
                 "✅ Plano \"" + plan.getName() + "\" registrado com sucesso!", plan);
@@ -104,7 +118,7 @@ public class PlanService {
             throw new RequiredFieldException("Nome do plano");
         }
 
-        for (Plan plan : plans) {
+        for (Plan plan : repository.listAll()) {
             if (plan.getName().equalsIgnoreCase(name.trim())) {
                 return new OperationResult<>(true, "Plano encontrado.", plan);
             }
@@ -124,7 +138,7 @@ public class PlanService {
             return new OperationResult<>(false, "O novo preço deve ser um valor positivo.");
         }
 
-        for (Plan plan : plans) {
+        for (Plan plan : repository.listAll()) {
             if (plan.getName().equalsIgnoreCase(name.trim())) {
                 double oldPrice = plan.getPricePerMonth();
                 plan.setPricePerMonth(newPrice);
@@ -142,19 +156,19 @@ public class PlanService {
      * Lista todos os planos cadastrados.
      */
     public OperationResult<ArrayList<Plan>> listAll() {
-        if (plans.isEmpty()) {
+        if (repository.isEmpty()) {
             return new OperationResult<>(false, "Nenhum plano cadastrado no sistema.");
         }
 
         return new OperationResult<>(true,
-                plans.size() + " plano(s) encontrado(s).", new ArrayList<>(plans));
+                repository.count() + " plano(s) encontrado(s).", repository.listAll());
     }
 
     /**
      * Verifica se um nome de plano já existe (case-insensitive).
      */
     public boolean nameExists(String name) {
-        for (Plan plan : plans) {
+        for (Plan plan : repository.listAll()) {
             if (plan.getName().equalsIgnoreCase(name)) {
                 return true;
             }
