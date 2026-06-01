@@ -6,7 +6,6 @@ import application.FitManager;
 import application.OperationResult;
 import domain.model.enums.PlanType;
 import domain.model.plans.Plan;
-import ui.screen.InputParser;
 
 import java.util.ArrayList;
 
@@ -36,24 +35,16 @@ public class PlanMenu {
 
         while (running) {
             try {
-                String menuOptions = "";
+                StringBuilder menuOptions = new StringBuilder();
                 for (PlanMenuOption opt : PlanMenuOption.values()) {
-                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getValorOpcao()).append("\n");
                 }
-                String input = ui.showMenu("> GERENCIAR PLANOS", menuOptions);
+                Integer choice = ui.showMenu("> GERENCIAR PLANOS", menuOptions.toString(), PlanMenuOption.values().length);
 
-                if (input == null) { running = false; continue; }
-                if (!InputParser.isNumeric(input)) {
-                    ui.showError("Opção inválida. Digite um número de 1 a " + PlanMenuOption.values().length + ".");
-                    continue;
-                }
+                if (choice == null) { running = false; continue; }
 
-                PlanMenuOption option = PlanMenuOption.fromNumber(Integer.parseInt(input.trim()));
-
-                if (option == null) {
-                    ui.showError("Opção inválida. Escolha de 1 a " + PlanMenuOption.values().length + ".");
-                    continue;
-                }
+                PlanMenuOption option = PlanMenuOption.fromNumber(choice);
+                if (option == null) continue;
 
                 switch (option) {
                     case CADASTRAR:      registerPlan();   break;
@@ -73,28 +64,26 @@ public class PlanMenu {
      * Coleta dados via UserInterface e delega ao FitManager.
      */
     private void registerPlan() {
-        String name = ui.getInput("Digite o nome do plano:");
+        String name = ui.getInput("Digite o nome do plano:", "Nome do plano");
         if (name == null) return;
 
-        String description = ui.getInput("Digite a descrição do plano:");
+        String description = ui.getInput("Digite a descrição do plano:", "Descrição do plano");
         if (description == null) return;
 
         PlanType type = selectPlanType();
         if (type == null) return;
 
-        String minDurationStr = ui.getInput("Digite a duração mínima (em meses):");
-        if (minDurationStr == null) return;
-
-        int minimumDuration = InputParser.parseInt(minDurationStr, "Duração minima");
+        Integer minimumDurationBoxed = ui.getInt("Digite a duração mínima (em meses):", "Duração mínima");
+        if (minimumDurationBoxed == null) return;
+        int minimumDuration = minimumDurationBoxed;
         if (minimumDuration <= 0) {
             ui.showError("A duração mínima deve ser um número positivo.");
             return;
         }
 
-        String priceStr = ui.getInput("Digite o preço por mês (ex: 99,90):");
-        if (priceStr == null) return;
-
-        double pricePerMonth = InputParser.parseDouble(priceStr, "Preço por mes");
+        Double pricePerMonthBoxed = ui.getDouble("Digite o preço por mês (ex: 99,90):", "Preço por mês");
+        if (pricePerMonthBoxed == null) return;
+        double pricePerMonth = pricePerMonthBoxed;
         if (pricePerMonth <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
@@ -114,7 +103,7 @@ public class PlanMenu {
      * Fluxo de consulta de plano pelo nome.
      */
     private void findPlanByName() {
-        String name = ui.getInput("Digite o nome do plano para consulta:");
+        String name = ui.getInput("Digite o nome do plano para consulta:", "Nome do plano");
         if (name == null) return;
 
         OperationResult<Plan> result = fitManager.findPlanByName(name);
@@ -131,7 +120,7 @@ public class PlanMenu {
      * Fluxo de atualização do preço de um plano.
      */
     private void updatePrice() {
-        String name = ui.getInput("Digite o nome do plano a atualizar:");
+        String name = ui.getInput("Digite o nome do plano a atualizar:", "Nome do plano");
         if (name == null) return;
 
         OperationResult<Plan> findResult = fitManager.findPlanByName(name);
@@ -143,10 +132,9 @@ public class PlanMenu {
         Plan plan = findResult.getData();
         ui.showMessage("Plano encontrado:\n\n" + plan.toString());
 
-        String newPriceStr = ui.getInput("Digite o novo preço por mês (ex: 99,90):");
-        if (newPriceStr == null) return;
-
-        double newPrice = InputParser.parseDouble(newPriceStr, "Novo Preço");
+        Double newPriceBoxed = ui.getDouble("Digite o novo preço por mês (ex: 99,90):", "Novo preço");
+        if (newPriceBoxed == null) return;
+        double newPrice = newPriceBoxed;
         if (newPrice <= 0) {
             ui.showError("O preço deve ser um valor positivo.");
             return;
@@ -193,28 +181,15 @@ public class PlanMenu {
      * Exibe todas as opções e retorna a escolha do usuário.
      */
     private PlanType selectPlanType() {
-        String options = "Escolha o tipo de plano:\n";
+        StringBuilder options = new StringBuilder("Escolha o tipo de plano:\n");
         int count = 1;
         for (PlanType type : PlanType.values()) {
-            options += count + " - " + type.getLabel() + "\n";
+            options.append(count).append(" - ").append(type.getLabel()).append("\n");
             count++;
         }
 
-        while (true) {
-            String input = ui.getInput(options + "\nOpção:");
-            if (input == null) return null;
-
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Digite um número válido.");
-                continue;
-            }
-
-            int choice = Integer.parseInt(input.trim());
-            if (choice >= 1 && choice <= PlanType.values().length) {
-                return PlanType.values()[choice - 1];
-            } else {
-                ui.showError("Opção inválida. Escolha de 1 a " + PlanType.values().length + ".");
-            }
-        }
+        Integer choice = ui.showMenu("> TIPO DE PLANO", options.toString(), PlanType.values().length);
+        if (choice == null) return null;
+        return PlanType.values()[choice - 1];
     }
 }

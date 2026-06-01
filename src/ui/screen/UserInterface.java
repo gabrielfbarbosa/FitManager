@@ -1,5 +1,7 @@
 package ui.screen;
 
+import java.time.LocalDate;
+
 /**
  * Interface que define o contrato de entrada e saída do sistema.
  *
@@ -12,22 +14,34 @@ package ui.screen;
  *
  * Os menus e serviços recebem esta interface por parâmetro,
  * permitindo trocar a implementação sem alterar nenhuma outra classe.
+ *
+ * Implementação compartilhada — a fim de evitar duplicação dos loops de
+ * validação entre as duas UIs concretas, toda a lógica comum
+ * (showMenu, getInput obrigatório, getInt, getDouble, getDate, getCpf,
+ * getPlan, selectPaymentType, collectPaymentData) reside na classe
+ * abstrata {@link BaseUserInterface}. As UIs concretas estendem
+ * essa abstrata e fornecem apenas as primitivas de I/O.
  */
 public interface UserInterface {
 
     /**
-     * Exibe um menu com título e opções, retornando a opção escolhida pelo usuário.
-     * Retorna null se o usuário cancelar o diálogo.
+     * Exibe um menu com título e opções, repetindo até receber uma escolha
+     * válida no intervalo {@code 1..maxOption}. Entradas não numéricas ou
+     * fora do intervalo geram {@code showError} e o menu é reexibido.
      *
-     * @param title   título do menu
-     * @param options texto completo com as opções numeradas
-     * @return a string digitada pelo usuário, ou null se cancelou
+     * @param title     título do menu (sufixo exibido após "FitManager")
+     * @param options   texto completo com as opções numeradas
+     * @param maxOption número da última opção do menu (intervalo válido: 1..maxOption)
+     * @return o número da opção escolhida, ou {@code null} se cancelado
      */
-    public String showMenu(String title, String options);
+    public Integer showMenu(String title, String options, int maxOption);
 
     /**
-     * Captura uma entrada de texto do usuário.
-     * Retorna null se o usuário cancelar o diálogo.
+     * Captura uma entrada de texto do usuário (campo opcional).
+     * Retorna a string digitada (possivelmente vazia) ou {@code null} se
+     * o usuário cancelar o diálogo. Usar para campos em que o vazio tem
+     * significado próprio (ex.: edição em que "deixar em branco mantém
+     * o valor atual").
      *
      * @param prompt texto do prompt exibido
      * @return a string digitada pelo usuário, ou null se cancelou
@@ -35,23 +49,48 @@ public interface UserInterface {
     public String getInput(String prompt);
 
     /**
-     * Exibe uma mensagem de sucesso/informação.
+     * Captura uma entrada de texto obrigatória.
+     * Repete o diálogo enquanto a entrada for nula ou em branco, exibindo
+     * {@code O campo "<fieldName>" é obrigatório.} via {@code showError}.
+     * Retorna {@code null} apenas quando o usuário cancela.
      *
-     * @param message texto da mensagem
+     * @param prompt    texto do prompt exibido
+     * @param fieldName nome legível do campo (usado na mensagem de erro)
+     * @return a string não vazia digitada, ou {@code null} se cancelado
+     */
+    public String getInput(String prompt, String fieldName);
+
+    /**
+     * Captura uma entrada inteira do usuário, repetindo até receber um
+     * valor parseável. Cancelamento retorna {@code null}.
+     */
+    public Integer getInt(String prompt, String fieldName);
+
+    /**
+     * Captura uma entrada decimal do usuário, repetindo até receber um
+     * valor parseável. Aceita vírgula como separador decimal (padrão pt-BR).
+     * Cancelamento retorna {@code null}.
+     */
+    public Double getDouble(String prompt, String fieldName);
+
+    /**
+     * Captura uma data do usuário no padrão {@code dd/MM/yyyy}, repetindo
+     * até receber uma data válida. Cancelamento retorna {@code null}.
+     */
+    public LocalDate getDate(String prompt, String fieldName);
+
+    /**
+     * Exibe uma mensagem de sucesso/informação.
      */
     public void showMessage(String message);
 
     /**
      * Exibe uma mensagem de erro.
-     *
-     * @param message texto do erro
      */
     public void showError(String message);
 
     /**
      * Exibe uma mensagem longa com suporte a rolagem.
-     *
-     * @param message texto da informação exibida
      */
     public void showScrollableMessage(String message);
 }

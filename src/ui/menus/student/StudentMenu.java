@@ -4,10 +4,10 @@ import application.FitManager;
 import application.OperationResult;
 import domain.model.Student;
 import exceptions.FitManagerException;
-import ui.screen.InputParser;
 import ui.screen.UserInterface;
+import util.DateFormatter;
 
-
+import java.time.LocalDate;
 import java.util.ArrayList;
 
 /**
@@ -38,24 +38,16 @@ public class StudentMenu {
 
         while (running) {
             try {
-                String menuOptions = "";
+                StringBuilder menuOptions = new StringBuilder();
                 for (StudentMenuOption opt : StudentMenuOption.values()) {
-                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getValorOpcao()).append("\n");
                 }
-                String input = ui.showMenu("> GERENCIAR ALUNOS", menuOptions);
+                Integer choice = ui.showMenu("> GERENCIAR ALUNOS", menuOptions.toString(), StudentMenuOption.values().length);
 
-                if (input == null) { running = false; continue; }
-                if (!InputParser.isNumeric(input)) {
-                    ui.showError("Opção inválida. Digite um número de 1 a " + StudentMenuOption.values().length + ".");
-                    continue;
-                }
+                if (choice == null) { running = false; continue; }
 
-                StudentMenuOption option = StudentMenuOption.fromNumber(Integer.parseInt(input.trim()));
-
-                if (option == null) {
-                    ui.showError("Opção inválida. Escolha de 1 a " + StudentMenuOption.values().length + ".");
-                    continue;
-                }
+                StudentMenuOption option = StudentMenuOption.fromNumber(choice);
+                if (option == null) continue;
 
                 switch (option) {
                     case CADASTRAR:     registerStudent();      break;
@@ -76,19 +68,20 @@ public class StudentMenu {
      * Coleta dados via UserInterface e delega ao FitManager.
      */
     private void registerStudent() {
-        String name = ui.getInput("Digite o nome:");
+        String name = ui.getInput("Digite o nome:", "Nome");
         if (name == null) return;
 
-        String cpf = ui.getInput("Digite o CPF (apenas números):");
+        String cpf = askValidCpf("Digite o CPF (apenas números):");
         if (cpf == null) return;
 
-        String contact = ui.getInput("Digite o contato (e-mail ou telefone):");
+        String contact = ui.getInput("Digite o contato (e-mail ou telefone):", "Contato");
         if (contact == null) return;
 
-        String birthDate = ui.getInput("Digite a data de nascimento (dd/mm/aaaa):");
+        LocalDate birthDate = ui.getDate("Digite a data de nascimento (dia/mê/ano ex: 30/07/1993):", "Data de Nascimento");
         if (birthDate == null) return;
 
-        OperationResult<Student> result = fitManager.registerStudent(name, cpf, contact, birthDate);
+        String birthDateStr = DateFormatter.formatDate(birthDate);
+        OperationResult<Student> result = fitManager.registerStudent(name, cpf, contact, birthDateStr);
 
         if (result.isSuccess()) {
             Student student = result.getData();
@@ -102,7 +95,7 @@ public class StudentMenu {
      * Fluxo de consulta de aluno por CPF.
      */
     private void findStudentByCpf() {
-        String cpf = ui.getInput("Digite o CPF para consulta:");
+        String cpf = askValidCpf("Digite o CPF para consulta:");
         if (cpf == null) return;
 
         OperationResult<Student> result = fitManager.findStudentByCpf(cpf);
@@ -115,12 +108,30 @@ public class StudentMenu {
         }
     }
 
+    private String askValidCpf(String prompt) {
+
+        while (true) {
+
+            String cpf = ui.getInput(prompt, "CPF");
+
+            if (cpf == null) return null;
+
+            OperationResult<String> result = fitManager.validateCpf(cpf);
+
+            if (result.isSuccess()) {
+                return result.getData();
+            }
+
+            ui.showError(result.getMessage());
+        }
+    }
+
     /**
      * Fluxo de edição de cadastro do aluno.
      * Permite alterar nome e contato. Campos deixados em branco mantêm o valor atual.
      */
     private void editStudent() {
-        String cpf = ui.getInput("Digite o CPF do aluno a editar:");
+        String cpf = askValidCpf("Digite o CPF do aluno a editar:");
         if (cpf == null) return;
 
         // Primeiro verifica se o aluno existe
@@ -154,7 +165,7 @@ public class StudentMenu {
      * Fluxo de remoção (inativação) de aluno.
      */
     private void removeStudent() {
-        String cpf = ui.getInput("Digite o CPF do aluno a remover:");
+        String cpf = askValidCpf("Digite o CPF do aluno a remover:");
         if (cpf == null) return;
 
         // Mostra o aluno antes de confirmar a remoção

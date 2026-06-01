@@ -145,13 +145,13 @@ public class StudentRepository extends Repository<Student> {
     }
 
     /**
-     * Busca um aluno ativo pelo CPF.
+     * Busca um aluno pelo CPF.
      * @return o Student ativo com o CPF informado, ou null se não encontrado.
      */
     public Student findByCpf(String cpf) {
-        for (Student s : items) {
-            if (s.getCpf().equals(cpf) && s.isActive()) {
-                return s;
+        for (Student student : items) {
+            if (student.getCpf().equals(cpf)) {
+                return student;
             }
         }
         return null;

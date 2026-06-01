@@ -5,7 +5,6 @@ import exceptions.FitManagerException;
 import ui.menus.plan.PlanMenu;
 import ui.menus.reports.ReportsMenu;
 import ui.menus.student.StudentMenu;
-import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
 import ui.menus.enrollment.EnrollmentMenu;
@@ -78,25 +77,20 @@ public class MainMenu {
 
         while (running) {
             try {
-                String menuOptions = "";
+                StringBuilder menuOptions = new StringBuilder();
                 for (MainMenuOption opt : MainMenuOption.values()) {
-                    menuOptions += opt.getNumber() + " - " + opt.getOptionName() + "\n";
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
                 }
-                String input = ui.showMenu("", menuOptions);
+                Integer choice = ui.showMenu("", menuOptions.toString(), MainMenuOption.values().length);
 
-                if (input == null) {
+                if (choice == null) {
                     running = false;
                     continue;
                 }
-                if (!InputParser.isNumeric(input)) {
-                    ui.showError("Opção inválida. Digite um número de 1 a " + MainMenuOption.values().length + ".");
-                    continue;
-                }
 
-                MainMenuOption option = MainMenuOption.fromNumber(Integer.parseInt(input.trim()));
-
+                MainMenuOption option = MainMenuOption.fromNumber(choice);
                 if (option == null) {
-                    ui.showError("Opção inválida. Escolha de 1 a " + MainMenuOption.values().length + ".");
+                    // Defesa em profundidade — showMenu já valida o intervalo.
                     continue;
                 }
 

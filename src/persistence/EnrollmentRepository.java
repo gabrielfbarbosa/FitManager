@@ -223,7 +223,6 @@ public class EnrollmentRepository extends Repository<Enrollment> {
                     continue;
                 }
                 if (trimmed.startsWith("#")) continue;
-                //items.add(deserializeEnrollment(trimmed, lineNumber));
                 Enrollment enrollment = deserializeEnrollment(trimmed, lineNumber);
                 if (studentRepository != null && studentRepository.findByCpf(enrollment.getStudentCpf()) == null) {
                     throw new CorruptedFileException(enrollmentsPath().toString(),

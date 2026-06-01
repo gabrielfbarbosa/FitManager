@@ -13,7 +13,6 @@ import domain.model.filters.ExpiredEnrollmentFilter;
 import domain.model.filters.PendingBalanceFilter;
 import domain.model.plans.Plan;
 import exceptions.FitManagerException;
-import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
 import java.util.ArrayList;
@@ -55,20 +54,12 @@ public class ReportsMenu {
                 for (ReportsMenuOption opt : ReportsMenuOption.values()) {
                     menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
                 }
-                String input = ui.showMenu("> RELATÓRIOS", menuOptions.toString());
+                Integer choice = ui.showMenu("> RELATÓRIOS", menuOptions.toString(), ReportsMenuOption.values().length);
 
-                if (input == null) { running = false; continue; }
-                if (!InputParser.isNumeric(input)) {
-                    ui.showError("Opção inválida. Digite um número de 1 a " + ReportsMenuOption.values().length + ".");
-                    continue;
-                }
+                if (choice == null) { running = false; continue; }
 
-                ReportsMenuOption option = ReportsMenuOption.fromNumber(Integer.parseInt(input.trim()));
-
-                if (option == null) {
-                    ui.showError("Opção inválida. Escolha de 1 a " + ReportsMenuOption.values().length + ".");
-                    continue;
-                }
+                ReportsMenuOption option = ReportsMenuOption.fromNumber(choice);
+                if (option == null) continue;
 
                 switch (option) {
                     case LISTAR_ALUNOS:        listAllStudents();          break;
@@ -178,11 +169,8 @@ public class ReportsMenu {
      * Consulta um aluno pelo CPF e exibe seus dados completos (toString).
      */
     private void findStudentByCpf() {
-        String cpf = ui.getInput("Digite o CPF do aluno para consulta:");
-        if (cpf == null || cpf.isBlank()) {
-            ui.showError("Insira um CPF");
-            return;
-        }
+        String cpf = askValidCpf("Digite o CPF do aluno para consulta:");
+        if (cpf == null) return;
 
         OperationResult<Student> result = fitManager.findStudentByCpf(cpf);
 
@@ -198,11 +186,8 @@ public class ReportsMenu {
      * Consulta um plano pelo nome e exibe seus dados completos (toString).
      */
     private void findPlanByName() {
-        String name = ui.getInput("Digite o nome do plano para consulta:");
-        if (name == null || name.isBlank()) {
-            ui.showError("Insira um plano");
-            return;
-        }
+        String name = ui.getInput("Digite o nome do plano para consulta:", "Nome do plano");
+        if (name == null) return;
 
         OperationResult<Plan> result = fitManager.findPlanByName(name);
 
@@ -218,11 +203,8 @@ public class ReportsMenu {
      * Consulta a matrícula ativa de um aluno pelo CPF e exibe dados completos (toString).
      */
     private void findActiveEnrollment() {
-        String cpf = ui.getInput("Digite o CPF do aluno:");
-        if (cpf == null || cpf.isBlank()) {
-            ui.showError("Insira um CPF");
-            return;
-        }
+        String cpf = askValidCpf("Digite o CPF do aluno:");
+        if (cpf == null) return;
 
         OperationResult<Enrollment> result = fitManager.findActiveEnrollmentByStudent(cpf);
 
@@ -279,25 +261,31 @@ public class ReportsMenu {
             options.append(i + 1).append(" - ").append(types[i].getLabel()).append("\n");
         }
 
-        String input = ui.getInput(options.toString());
-        if (input == null || input.isBlank()) {
-            ui.showError("Selecione um plano");
-            return;
-        }
-
-        if (!InputParser.isNumeric(input)) {
-            ui.showError("Opção inválida. Digite um número de 1 a " + types.length + ".");
-            return;
-        }
-
-        int choice = Integer.parseInt(input.trim());
-        if (choice < 1 || choice > types.length) {
-            ui.showError("Opção inválida. Escolha de 1 a " + types.length + ".");
-            return;
-        }
+        Integer choice = ui.showMenu("> FILTRO POR TIPO DE PLANO", options.toString(), types.length);
+        if (choice == null) return;
 
         PlanType selectedType = types[choice - 1];
         showFilteredEnrollments(new ByPlanTypeFilter(selectedType));
+    }
+
+    /**
+     * Verificar se um cpf é valido, e solicitar novamente
+     * caso não for valido
+     */
+    private String askValidCpf(String prompt) {
+
+        while (true) {
+
+            String cpf = ui.getInput(prompt, "CPF");
+
+            OperationResult<String> result = fitManager.validateCpf(cpf);
+
+            if (result.isSuccess()) {
+                return result.getData();
+            }
+
+            ui.showError(result.getMessage());
+        }
     }
 
     // ============================

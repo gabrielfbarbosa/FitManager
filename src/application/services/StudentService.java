@@ -65,7 +65,7 @@ public class StudentService {
         if (!Student.validateCpf(cleanCpf)) {
             throw new InvalidFormatFieldException("CPF", "11 dígitos numéricos com dígito verificador válido");
         }
-        if (hasActiveStudent(cleanCpf) != null) {
+        if (findActiveStudentByCpf(cleanCpf) != null) {
             return new OperationResult<>(false, "Já existe um aluno cadastrado com este CPF.");
         }
 
@@ -116,7 +116,7 @@ public class StudentService {
             throw new InvalidFormatFieldException("CPF", "11 dígitos numéricos com dígito verificador válido");
         }
 
-        Student student = hasActiveStudent(cleanCpf);
+        Student student = findActiveStudentByCpf(cleanCpf);
         if (student != null) {
             return new OperationResult<>(true, "Aluno encontrado.", student);
         }
@@ -136,7 +136,7 @@ public class StudentService {
         }
         String cleanCpf = Student.cleanCpf(cpf);
 
-        Student student = hasActiveStudent(cleanCpf);
+        Student student = findActiveStudentByCpf(cleanCpf);
         if (student != null) {
             student.deactivate();
             return new OperationResult<>(true,
@@ -162,7 +162,7 @@ public class StudentService {
         }
         String cleanCpf = Student.cleanCpf(cpf);
 
-        Student student = hasActiveStudent(cleanCpf);
+        Student student = findActiveStudentByCpf(cleanCpf);
         if (student != null) {
             if (newName != null && !newName.isBlank()) {
                 student.setName(newName.trim());
@@ -199,9 +199,9 @@ public class StudentService {
     }
 
     /**
-     * Verifica se existe um aluno ativo com o CPF informado.
+     * Encontra e retorna um aluno ativo, se existir, com o CPF informado.
      */
-    public Student hasActiveStudent(String cpf) {
+    public Student findActiveStudentByCpf(String cpf) {
         for (Student student : repository.listAll()) {
             if (student.getCpf().equals(cpf) && student.isActive()) {
                 return student;
