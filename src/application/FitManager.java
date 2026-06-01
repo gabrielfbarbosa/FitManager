@@ -164,6 +164,34 @@ public class FitManager {
         return studentService.listAll();
     }
 
+    /**
+     * Valida um CPF e retorna o CPF limpo.
+     */
+    public OperationResult<String> validateCpf(String cpf) {
+
+        if (cpf.isBlank()) {
+            return new OperationResult<>(
+                    false,
+                    "O campo CPF é obrigatório."
+            );
+        }
+
+        String cleanCpf = Student.cleanCpf(cpf);
+
+        if (!Student.validateCpf(cleanCpf)) {
+            return new OperationResult<>(
+                    false,
+                    "CPF inválido. Informe um CPF válido."
+            );
+        }
+
+        return new OperationResult<>(
+                true,
+                "CPF válido.",
+                cleanCpf
+        );
+    }
+
     // ============================
     // Operações de Planos
     // ============================
