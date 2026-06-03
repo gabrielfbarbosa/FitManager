@@ -436,4 +436,28 @@ public class EnrollmentService {
                 pendingEnrollments.size() + " matrícula(s) com saldo pendente encontrada(s).",
                 pendingEnrollments);
     }
+
+    /**
+     * Insere uma matrícula totalmente montada (com código, status, cancelledAt
+     * e pagamentos já populados) diretamente no repositório, sem aplicar as
+     * validações do fluxo de negócio.
+     *
+     * <p>Uso EXCLUSIVO para mocks de dados de demonstração: permite criar
+     * matrículas com datas no passado, históricos retroativos e estados pré-
+     * existentes (CANCELLED com cancelledAt arbitrário) que o fluxo regular
+     * de {@link #enroll} rejeitaria.</p>
+     *
+     * <p>Ajusta o contador estático {@code Enrollment.nextCode} se necessário
+     * para que matrículas criadas pelo fluxo regular após a chamada não
+     * reutilizem o código injetado.</p>
+     */
+    public void mockEnrollment(Enrollment enrollment) {
+        if (enrollment == null) {
+            throw new RequiredFieldException("Matrícula");
+        }
+        repository.add(enrollment);
+        if (enrollment.getCode() >= Enrollment.getNextCode()) {
+            Enrollment.setNextCode(enrollment.getCode() + 1);
+        }
+    }
 }
