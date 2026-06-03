@@ -13,7 +13,8 @@ public enum ReportsMenuOption {
     CONSULTAR_PLANO(10, "Consultar plano por nome"),
     CONSULTAR_MATRICULA(11, "Consultar matrícula ativa de um aluno"),
     ESTATISTICAS(12, "Estatísticas do sistema"),
-    VOLTAR(13, "Voltar");
+    RELATORIO_FINANCEIRO(13, "Relatório financeiro mensal"),
+    VOLTAR(14, "Voltar");
 
     private final int numero;
     private final String valorOpcao;

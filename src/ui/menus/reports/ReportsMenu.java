@@ -2,6 +2,7 @@ package ui.menus.reports;
 
 import application.FitManager;
 import application.OperationResult;
+import application.reports.FinancialReport;
 import domain.model.Enrollment;
 import domain.model.Student;
 import domain.model.enums.PlanType;
@@ -15,6 +16,10 @@ import domain.model.plans.Plan;
 import exceptions.FitManagerException;
 import ui.screen.UserInterface;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 /**
@@ -74,6 +79,7 @@ public class ReportsMenu {
                     case CONSULTAR_PLANO:      findPlanByName();           break;
                     case CONSULTAR_MATRICULA:  findActiveEnrollment();     break;
                     case ESTATISTICAS:         showStatistics();           break;
+                    case RELATORIO_FINANCEIRO: monthlyFinancialReport();   break;
                     case VOLTAR:               running = false;            break;
                 }
             } catch (FitManagerException e) {
@@ -302,6 +308,71 @@ public class ReportsMenu {
             ui.showMessage(result.getMessage());
         } else {
             ui.showError(result.getMessage());
+        }
+    }
+
+    // ============================
+    // Relatório Financeiro Mensal
+    // ============================
+
+    /**
+     * Fluxo do relatório financeiro mensal.
+     * Solicita mês/ano (com validação no próprio getInt), gera o relatório
+     * via {@link FitManager#generateMonthlyReport(int, int)} e exibe o
+     * resultado formatado. Período sem dados é exibido normalmente, com
+     * todas as métricas zeradas e uma nota informativa — não é tratado
+     * como erro.
+     *
+     * Após a exibição, oferece ao usuário a opção de exportar o relatório
+     * para um arquivo CSV em {@code data/reports/}.
+     */
+    private void monthlyFinancialReport() {
+        Integer month = ui.getInt("Digite o mês (3-12):", "Mês");
+        if (month == null) return;
+        if (month < 3 || month > 12) {
+            ui.showError("O mês deve estar entre o mes de inauguração da FitManager que é 3 e 12.");
+            return;
+        }
+
+        Integer year = ui.getInt("Digite o ano (ex: 2026):", "Ano");
+        if (year == null) return;
+        if (year < 2026) {
+            ui.showError("A FitManager foi inaugurado em 2026. Existem relátorios a partir do ano de inauguração.");
+            return;
+        }
+
+        OperationResult<FinancialReport> result = fitManager.generateMonthlyReport(month, year);
+        if (!result.isSuccess()) {
+            ui.showError(result.getMessage());
+            return;
+        }
+
+        FinancialReport report = result.getData();
+        ui.showScrollableMessage(report.format());
+
+        String exportar = ui.getInput(
+                "Deseja exportar o relatório para um arquivo CSV?\n" +
+                        "Digite 'S' para confirmar ou qualquer outra tecla para pular:");
+        if (exportar != null && exportar.trim().equalsIgnoreCase("S")) {
+            exportReport(report);
+        }
+    }
+
+    /**
+     * Exporta o relatório para {@code data/reports/relatorio_financeiro_<mes>_<ano>.csv}.
+     * Falhas de escrita são exibidas ao usuário sem encerrar o programa.
+     */
+    private void exportReport(FinancialReport report) {
+        String fileName = String.format("relatorio_financeiro_%02d_%d.csv",
+                report.getMonth(), report.getYear());
+        Path dir = Paths.get("data", "reports");
+        Path path = dir.resolve(fileName);
+        try {
+            Files.createDirectories(dir);
+            Files.writeString(path, report.toCsv());
+            ui.showMessage("✅ Relatório exportado para: " + path.toAbsolutePath());
+        } catch (IOException e) {
+            ui.showError("Falha ao exportar o relatório: " + e.getMessage());
         }
     }
 }

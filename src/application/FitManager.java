@@ -1,5 +1,6 @@
 package application;
 
+import application.reports.FinancialReport;
 import application.services.StudentService;
 import application.services.PlanService;
 import application.services.EnrollmentService;
@@ -8,6 +9,7 @@ import domain.model.enums.PlanType;
 import domain.model.enums.PaymentType;
 import domain.model.filters.EnrollmentFilter;
 import domain.model.payments.Payment;
+import domain.model.payments.PaymentFactory;
 import domain.model.plans.Plan;
 import domain.model.Student;
 import domain.model.Enrollment;
@@ -20,6 +22,7 @@ import util.CurrencyFormatter;
 import util.DateFormatter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 
@@ -403,5 +406,80 @@ public class FitManager {
                 "Saldo Pendente Total: " + CurrencyFormatter.formatCurrency(totalBalance);
 
         return new OperationResult<>(true, stats);
+    }
+
+    /**
+     * Gera o relatório financeiro mensal consolidando todas as métricas
+     * exigidas pelo enunciado (receita total, receita por tipo de plano,
+     * receita por forma de pagamento, taxas de processamento, matrículas
+     * iniciadas e canceladas no período, tipos de plano mais contratados).
+     *
+     * Agregações são feitas via polimorfismo — {@code plan.getTypeName()}
+     * e {@code payment.getTypeName()} — sem {@code instanceof} nem
+     * {@code getClass()}.
+     *
+     * Período sem dados é um resultado válido: retorna {@code success = true}
+     * com um {@link FinancialReport} zerado; jamais lança exceção ou
+     * retorna {@code success = false} apenas por ausência de pagamentos.
+     *
+     * @param month mês do período (1-12)
+     * @param year  ano do período (positivo)
+     * @return OperationResult com o FinancialReport calculado, ou erro se
+     *         os parâmetros estiverem fora do intervalo
+     */
+    public OperationResult<FinancialReport> generateMonthlyReport(int month, int year) {
+        if (month < 1 || month > 12) {
+            return new OperationResult<>(false, "Mês deve estar entre 1 e 12.");
+        }
+        if (year <= 0) {
+            return new OperationResult<>(false, "Ano deve ser um valor positivo.");
+        }
+
+        FinancialReport report = new FinancialReport(month, year);
+
+        OperationResult<ArrayList<Enrollment>> allResult = listAllEnrollments();
+        if (allResult.isSuccess()) {
+            for (Enrollment enrollment : allResult.getData()) {
+                // Matrículas iniciadas no período (agrupa por tipo de plano via getTypeName).
+                LocalDate start = enrollment.getStartDate();
+                if (start != null && start.getMonthValue() == month && start.getYear() == year) {
+                    report.addEnrollmentStarted(enrollment.getPlan().getTypeName());
+                }
+
+                // Matrículas canceladas no período.
+                LocalDate cancelled = enrollment.getCancelledAt();
+                if (cancelled != null && cancelled.getMonthValue() == month && cancelled.getYear() == year) {
+                    report.incrementCancelled();
+                }
+
+                // Pagamentos no período — somam à receita, taxas e agrupamentos.
+                String planTypeName = enrollment.getPlan().getTypeName();
+                for (Payment payment : enrollment.getPayments()) {
+                    LocalDateTime when = payment.getPaymentDate();
+                    if (when != null && when.getMonthValue() == month && when.getYear() == year) {
+                        report.addPayment(planTypeName, payment);
+                    }
+                }
+            }
+        }
+
+        return new OperationResult<>(true, "Relatório financeiro gerado.", report);
+    }
+
+    /**
+     * Insere uma matrícula totalmente montada (com código, status, cancelledAt
+     * e pagamentos já populados) diretamente no repositório, sem aplicar as
+     * validações do fluxo de negócio (data de início no passado, plano
+     * existente, aluno cadastrado, matrícula ativa duplicada).
+     *
+     * <p>Uso EXCLUSIVO para popular dados de demonstração via DataMocks. É a
+     * única "porta" mock-only exposta pelo FitManager — todas as demais
+     * variações específicas de mockEnrollment (datas no passado, cancelamentos em
+     * datas históricas, pagamentos retroativos) são montadas pelo próprio
+     * mock usando o construtor de restauração de {@link Enrollment} e
+     * {@link PaymentFactory}.</p>
+     */
+    public void mockEnrollment(Enrollment enrollment) {
+        enrollmentService.mockEnrollment(enrollment);
     }
 }
