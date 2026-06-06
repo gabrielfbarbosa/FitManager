@@ -4,12 +4,8 @@ import domain.model.Enrollment;
 import domain.model.Student;
 import domain.model.enums.EnrollmentStatus;
 import domain.model.enums.PaymentType;
-import domain.model.payments.CashPayment;
-import domain.model.payments.CreditCardPayment;
-import domain.model.payments.DebitCardPayment;
 import domain.model.payments.Payment;
 import domain.model.payments.PaymentFactory;
-import domain.model.payments.PixPayment;
 import domain.model.plans.Plan;
 import exceptions.CorruptedFileException;
 import exceptions.PersistenceException;
@@ -179,18 +175,11 @@ public class EnrollmentRepository extends Repository<Enrollment> {
           .append(p.getPaymentType().name()).append(';')
           .append(p.getAmount()).append(';')
           .append(DateFormatter.formatDateTime(p.getPaymentDate())).append(';')
-          .append(escape(p.getDescription())).append(';');
-        // Campos específicos da subclasse:
-        if (p instanceof PixPayment pix) {
-            sb.append(escape(pix.getPixKey())).append(';');
-        } else if (p instanceof CreditCardPayment cc) {
-            sb.append(cc.getInstallments()).append(';').append(cc.getCardLastDigits());
-        } else if (p instanceof DebitCardPayment dc) {
-            sb.append(dc.getCardLastDigits()).append(';');
-        } else if (p instanceof CashPayment cash) {
-            sb.append(cash.getAmountReceived()).append(';');
-        } else {
-            sb.append(';');
+          .append(escape(p.getDescription()));
+        // Campos específicos da subclasse, obtidos polimorficamente (sem instanceof):
+        // cada Payment devolve seus próprios atributos na ordem esperada pela leitura.
+        for (String field : p.getCsvExtraFields()) {
+            sb.append(';').append(escape(field));
         }
         return sb.toString();
     }
