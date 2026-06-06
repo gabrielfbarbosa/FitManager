@@ -38,6 +38,9 @@ import java.util.ArrayList;
  */
 public class ReportsMenu {
 
+    private static final int INAUGURATION_MONTH = 3;
+    private static final int INAUGURATION_YEAR = 2026;
+
     private UserInterface ui;
     private FitManager fitManager;
 
@@ -327,17 +330,24 @@ public class ReportsMenu {
      * para um arquivo CSV em {@code data/reports/}.
      */
     private void monthlyFinancialReport() {
-        Integer month = ui.getInt("Digite o mês (3-12):", "Mês");
+        Integer month = ui.getInt("Digite o mês (1-12):", "Mês");
         if (month == null) return;
-        if (month < 3 || month > 12) {
-            ui.showError("O mês deve estar entre o mes de inauguração da FitManager que é 3 e 12.");
+        if (month < 1 || month > 12) {
+            ui.showError("O mês deve estar entre 1 e 12.");
             return;
         }
 
         Integer year = ui.getInt("Digite o ano (ex: 2026):", "Ano");
         if (year == null) return;
-        if (year < 2026) {
-            ui.showError("A FitManager foi inaugurado em 2026. Existem relátorios a partir do ano de inauguração.");
+
+        // A FitManager foi inaugurada em 01/03/2026: só há relatórios a partir
+        // desse período. Anos seguintes (2027+) têm todos os meses disponíveis,
+        // inclusive janeiro e fevereiro.
+        if (year < INAUGURATION_YEAR
+                || (year == INAUGURATION_YEAR && month < INAUGURATION_MONTH)) {
+            ui.showError("A FitManager foi inaugurada em "
+                    + String.format("%02d/%d", INAUGURATION_MONTH, INAUGURATION_YEAR)
+                    + ". Só é possível gerar relatórios a partir dessa data.");
             return;
         }
 
