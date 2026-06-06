@@ -51,7 +51,9 @@ public class CashPayment extends Payment {
         return summary;
     }
 
-    public double getAmountReceived() {
-        return amountReceived;
+    /** Ordem de leitura dinheiro: {@code [amountReceived]}. */
+    @Override
+    public String[] getCsvExtraFields() {
+        return new String[]{String.valueOf(amountReceived)};
     }
 }

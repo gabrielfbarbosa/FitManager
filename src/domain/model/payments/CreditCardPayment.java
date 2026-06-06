@@ -45,11 +45,9 @@ public class CreditCardPayment extends Payment {
                 "Descrição: " + getDescription();
     }
 
-    public int getInstallments() {
-        return installments;
-    }
-
-    public String getCardLastDigits() {
-        return cardLastDigits;
+    /** Ordem de leitura cartão de crédito: {@code [installments, cardLastDigits]}. */
+    @Override
+    public String[] getCsvExtraFields() {
+        return new String[]{String.valueOf(installments), cardLastDigits};
     }
 }
