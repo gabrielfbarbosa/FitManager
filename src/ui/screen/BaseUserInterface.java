@@ -64,10 +64,10 @@ public abstract class BaseUserInterface implements UserInterface {
             try {
                 int choice = Integer.parseInt(raw.trim());
                 if (choice >= 1 && choice <= maxOption) return choice;
+                showError(errorMessage);
             } catch (NumberFormatException e) {
-                // Silenciar o erro, para exibir o erro na tela, mantendo o loop, para aguardar um valor valido
+                showError(errorMessage);
             }
-            showError(errorMessage);
         }
     }
 
