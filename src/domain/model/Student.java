@@ -28,6 +28,31 @@ public class Student implements Summarizable {
         this.removedAt = null;
     }
 
+    /**
+     * Construtor de restauração — usado pela camada de persistência para
+     * reconstruir um aluno a partir do arquivo, preservando o estado
+     * {@code active} e {@code removedAt} salvos.
+     *
+     * Não deve ser usado pela camada de aplicação para cadastrar novos
+     * alunos — para isso, use o construtor padrão que inicializa
+     * {@code active = true} e {@code removedAt = null}.
+     */
+    public Student(
+            String name,
+            String cpf,
+            String contact,
+            LocalDate birthDate,
+            boolean active,
+            LocalDate removedAt
+    ) {
+        this.name = name;
+        this.cpf = cpf;
+        this.contact = contact;
+        this.birthDate = birthDate;
+        this.active = active;
+        this.removedAt = removedAt;
+    }
+
     // ========================
     // Métodos de negócio
     // ========================

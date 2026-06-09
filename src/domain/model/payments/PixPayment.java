@@ -34,7 +34,9 @@ public class PixPayment extends Payment {
                 "Descrição: " + getDescription();
     }
 
-    public String getPixKey() {
-        return pixKey;
+    /** Ordem de leitura PIX: {@code [pixKey]}. */
+    @Override
+    public String[] getCsvExtraFields() {
+        return new String[]{pixKey};
     }
 }

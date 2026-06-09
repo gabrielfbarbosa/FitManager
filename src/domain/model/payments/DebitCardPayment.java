@@ -34,7 +34,9 @@ public class DebitCardPayment extends Payment {
                 "Descrição: " + getDescription();
     }
 
-    public String getCardLastDigits() {
-        return cardLastDigits;
+    /** Ordem de leitura cartão de débito: {@code [cardLastDigits]}. */
+    @Override
+    public String[] getCsvExtraFields() {
+        return new String[]{cardLastDigits};
     }
 }

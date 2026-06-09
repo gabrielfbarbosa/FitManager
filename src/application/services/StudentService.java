@@ -2,24 +2,46 @@ package application.services;
 
 import application.OperationResult;
 import domain.model.Student;
+import exceptions.InvalidFormatFieldException;
+import exceptions.RequiredFieldException;
+import persistence.StudentRepository;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 
+import util.CollectionUtils;
 import util.DateFormatter;
 
 /**
- * Serviço responsável por manter a coleção de alunos em memória
- * e implementar as operações específicas da entidade Student.
+ * Serviço responsável pelas operações específicas da entidade Student.
  *
- * Conhece apenas objetos do seu próprio domínio.
+ * Conhece apenas objetos do seu próprio domínio. Delega o armazenamento
+ * e a persistência da coleção ao {@link StudentRepository}, composto como
+ * atributo interno (relação de composição). O serviço cuida das regras de
+ * negócio (validações de campo, formato do CPF, unicidade); o repositório
+ * cuida da coleção e da persistência em arquivo.
+ *
+ * Política de comunicação de falhas:
+ * - Campos obrigatórios vazios → {@link RequiredFieldException}.
+ * - Entradas em formato inválido (CPF, data) → {@link InvalidFormatFieldException}.
+ * - Resultados normais de consulta (não encontrado, lista vazia, CPF duplicado,
+ *   data futura) seguem usando {@link OperationResult} com {@code success = false}.
  */
 public class StudentService {
 
-    private ArrayList<Student> students;
+    private StudentRepository repository;
 
     public StudentService() {
-        this.students = new ArrayList<>();
+        this.repository = new StudentRepository();
+    }
+
+    /**
+     * Expõe o repositório composto.
+     * Utilizado pelo orquestrador (FitManager) para coordenar persistência.
+     */
+    public StudentRepository getRepository() {
+        return repository;
     }
 
     /**
@@ -28,61 +50,55 @@ public class StudentService {
      *
      * @return OperationResult com o Student criado em data (se sucesso)
      */
-    public OperationResult registerStudent(
+    public OperationResult<Student> registerStudent(
         String name,
         String cpf,
         String contact,
         String birthDateStr
     ) {
-        OperationResult fieldCheck = validateRequiredFields(name, cpf, contact, birthDateStr);
-        if (!fieldCheck.isSuccess()) {
-            return fieldCheck;
-        }
+        name = validateRequiredFields(name, "Nome");
+        cpf = validateRequiredFields(cpf, "CPF");
+        contact = validateRequiredFields(contact, "Contato");
+        birthDateStr = validateRequiredFields(birthDateStr, "Data de Nascimento");
 
         String cleanCpf = Student.cleanCpf(cpf);
 
         if (!Student.validateCpf(cleanCpf)) {
-            return new OperationResult(false, "CPF inválido. Verifique os dígitos e tente novamente.");
+            throw new InvalidFormatFieldException("CPF", "11 dígitos numéricos com dígito verificador válido");
         }
-        if (cpfExists(cleanCpf)) {
-            return new OperationResult(false, "Já existe um aluno cadastrado com este CPF.");
+        if (findActiveStudentByCpf(cleanCpf) != null) {
+            return new OperationResult<>(false, "Já existe um aluno cadastrado com este CPF.");
         }
 
-        LocalDate birthDate = DateFormatter.parseDate(birthDateStr);
+        LocalDate birthDate;
+        try {
+            birthDate = DateFormatter.parseDate(birthDateStr);
+        } catch (DateTimeParseException e) {
+            throw new InvalidFormatFieldException("Data de Nascimento", DateFormatter.DATE_PATTERN + " (ex.: 30/07/1993)");
+        }
 
         if (birthDate.isAfter(LocalDate.now())) {
-            return new OperationResult(false, "A data de nascimento não pode ser uma data futura.");
+            return new OperationResult<>(false, "A data de nascimento não pode ser uma data futura.");
         }
 
-        Student student = new Student(name.trim(), cleanCpf, contact.trim(), birthDate);
-        students.add(student);
+        Student student = new Student(name, cleanCpf, contact, birthDate);
+        repository.add(student);
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 "✅ Aluno " + student.getName() + " registrado com sucesso!", student);
     }
 
     /**
-     * Valida que nenhum campo obrigatório do aluno está vazio.
+     * Valida se um campo obrigatório do aluno está vazio ou nulo.
+     * Lança {@link RequiredFieldException} no primeiro campo vazio encontrado.
+     * @return valor limpo, sem espaços desnecessários
      */
-    private OperationResult validateRequiredFields(
-        String name,
-        String cpf,
-        String contact,
-        String birthDateStr
-    ) {
-        if (name == null || name.trim().isEmpty()) {
-            return new OperationResult(false, "O nome é obrigatório.");
+    private String validateRequiredFields(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new RequiredFieldException(fieldName);
         }
-        if (cpf == null || cpf.trim().isEmpty()) {
-            return new OperationResult(false, "O CPF é obrigatório.");
-        }
-        if (contact == null || contact.trim().isEmpty()) {
-            return new OperationResult(false, "O contato é obrigatório.");
-        }
-        if (birthDateStr == null || birthDateStr.trim().isEmpty()) {
-            return new OperationResult(false, "A data de nascimento é obrigatória.");
-        }
-        return new OperationResult(true, "ok");
+
+        return value.trim();
     }
 
     /**
@@ -90,40 +106,45 @@ public class StudentService {
      *
      * @return OperationResult com o Student encontrado em data (se sucesso)
      */
-    public OperationResult findByCpf(String cpf) {
-        if (cpf == null || cpf.trim().isEmpty()) {
-            return new OperationResult(false, "O CPF é obrigatório para consulta.");
+    public OperationResult<Student> findByCpf(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
         }
 
         String cleanCpf = Student.cleanCpf(cpf);
 
-        for (Student student : students) {
-            if (student.getCpf().equals(cleanCpf) && student.isActive()) {
-                return new OperationResult(true, "Aluno encontrado.", student);
-            }
+        if (!Student.validateCpf(cleanCpf)) {
+            throw new InvalidFormatFieldException("CPF", "11 dígitos numéricos com dígito verificador válido");
         }
 
-        return new OperationResult(false, "Nenhum aluno ativo encontrado com o CPF informado.");
+        Student student = findActiveStudentByCpf(cleanCpf);
+        if (student != null) {
+            return new OperationResult<>(true, "Aluno encontrado.", student);
+        }
+
+        return new OperationResult<>(false, "Nenhum aluno ativo encontrado com o CPF informado.");
     }
 
     /**
      * Remove (desativa) um aluno pelo CPF.
      * A verificação de matrículas ativas é responsabilidade do FitManager.
      *
-     * @return OperationResult indicando sucesso ou falha
+     * @return OperationResult sem dado de retorno (operação de mutação)
      */
-    public OperationResult removeStudent(String cpf) {
+    public OperationResult<Void> removeStudent(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
         String cleanCpf = Student.cleanCpf(cpf);
 
-        for (Student student : students) {
-            if (student.getCpf().equals(cleanCpf) && student.isActive()) {
-                student.deactivate();
-                return new OperationResult(true,
-                        "✅ Aluno " + student.getName() + " removido com sucesso.");
-            }
+        Student student = findActiveStudentByCpf(cleanCpf);
+        if (student != null) {
+            student.deactivate();
+            return new OperationResult<>(true,
+                    "✅ Aluno " + student.getName() + " removido com sucesso.");
         }
 
-        return new OperationResult(false, "Nenhum aluno ativo encontrado com o CPF informado.");
+        return new OperationResult<>(false, "Nenhum aluno ativo encontrado com o CPF informado.");
     }
 
     /**
@@ -132,71 +153,59 @@ public class StudentService {
      *
      * @return OperationResult com o Student atualizado em data (se sucesso)
      */
-    public OperationResult updateStudent(
+    public OperationResult<Student> updateStudent(
         String cpf,
         String newName,
         String newContact
     ) {
+        if (cpf == null || cpf.isBlank()) {
+            throw new RequiredFieldException("CPF");
+        }
         String cleanCpf = Student.cleanCpf(cpf);
 
-        for (Student student : students) {
-            if (student.getCpf().equals(cleanCpf) && student.isActive()) {
-                if (newName != null && !newName.trim().isEmpty()) {
-                    student.setName(newName.trim());
-                }
-                if (newContact != null && !newContact.trim().isEmpty()) {
-                    student.setContact(newContact.trim());
-                }
-                return new OperationResult(true,
-                        "✅ Cadastro do aluno atualizado com sucesso!", student);
+        Student student = findActiveStudentByCpf(cleanCpf);
+        if (student != null) {
+            if (newName != null && !newName.isBlank()) {
+                student.setName(newName.trim());
             }
+            if (newContact != null && !newContact.isBlank()) {
+                student.setContact(newContact.trim());
+            }
+            return new OperationResult<>(true,
+                    "✅ Cadastro do aluno atualizado com sucesso!", student);
         }
 
-        return new OperationResult(false, "Nenhum aluno ativo encontrado com o CPF informado.");
+        return new OperationResult<>(false, "Nenhum aluno ativo encontrado com o CPF informado.");
     }
 
     /**
      * Lista todos os alunos ativos.
      *
-     * @return OperationResult com ArrayList<Student> em data
+     * @return OperationResult com ArrayList&lt;Student&gt; em data
      */
-    public OperationResult listAll() {
-        ArrayList<Student> activeStudents = new ArrayList<>();
-        for (Student student : students) {
-            if (student.isActive()) {
-                activeStudents.add(student);
-            }
-        }
+    public OperationResult<ArrayList<Student>> listAll() {
+        ArrayList<Student> activeStudents = CollectionUtils.filter(
+                repository.listAll(),
+                Student::isActive
+        );
 
         if (activeStudents.isEmpty()) {
-            return new OperationResult(false, "Nenhum aluno cadastrado no sistema.");
+            return new OperationResult<>(false, "Nenhum aluno cadastrado no sistema.");
         }
 
-        return new OperationResult(true,
+        return new OperationResult<>(true,
                 activeStudents.size() + " aluno(s) encontrado(s).", activeStudents);
     }
 
     /**
-     * Verifica se um CPF já está cadastrado no sistema (ativo ou inativo).
+     * Encontra e retorna um aluno ativo, se existir, com o CPF informado.
      */
-    public boolean cpfExists(String cpf) {
-        for (Student student : students) {
-            if (student.getCpf().equals(cpf)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Verifica se existe um aluno ativo com o CPF informado.
-     */
-    public boolean hasActiveStudent(String cpf) {
-        for (Student student : students) {
+    public Student findActiveStudentByCpf(String cpf) {
+        for (Student student : repository.listAll()) {
             if (student.getCpf().equals(cpf) && student.isActive()) {
-                return true;
+                return student;
             }
         }
-        return false;
+        return null;
     }
 }

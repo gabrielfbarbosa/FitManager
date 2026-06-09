@@ -4,7 +4,7 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 /**
- * Utilitário responsável por formatar valores monetários no padrão brasileiro (BRL).
+ * Utilitário responsável por formatar valores monetário e decimal no padrão brasileiro (BRL).
  *
  * Usa {@link NumberFormat} com {@link Locale} "pt-BR" para garantir:
  *  - ponto (.) como separador de milhar
@@ -18,7 +18,7 @@ import java.util.Locale;
  */
 public final class CurrencyFormatter {
 
-    private static final Locale BRAZIL = new Locale("pt", "BR");
+    private static final Locale BRAZIL = Locale.of("pt", "BR");
 
     private static final NumberFormat CURRENCY_FORMAT = NumberFormat.getCurrencyInstance(BRAZIL);
 
@@ -40,5 +40,13 @@ public final class CurrencyFormatter {
      */
     public static String formatCurrency(double value) {
         return CURRENCY_FORMAT.format(value);
+    }
+
+    /**
+     * Formata um valor decimal com duas casas, sem símbolo monetário.
+     * Ex.: 2596.500000000 → "2.596,50"
+     */
+    public static String formatDecimal(double value) {
+        return NUMBER_FORMAT.format(value);
     }
 }

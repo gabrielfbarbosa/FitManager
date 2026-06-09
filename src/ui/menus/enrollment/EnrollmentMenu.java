@@ -4,11 +4,13 @@ import application.FitManager;
 import application.OperationResult;
 import domain.model.enums.PaymentType;
 import domain.model.Enrollment;
-import ui.screen.InputParser;
+import domain.model.payments.Payment;
+import exceptions.FitManagerException;
 import ui.screen.UserInterface;
 import util.CurrencyFormatter;
 import util.DateFormatter;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 
 /**
@@ -36,32 +38,28 @@ public class EnrollmentMenu {
         boolean running = true;
 
         while (running) {
-            String menuOptions = "";
-            for (EnrollmentMenuOption opt : EnrollmentMenuOption.values()) {
-                menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
-            }
-            String input = ui.showMenu("> GERENCIAR MATRÍCULAS", menuOptions);
+            try {
+                String menuOptions = "";
+                for (EnrollmentMenuOption opt : EnrollmentMenuOption.values()) {
+                    menuOptions += opt.getNumber() + " - " + opt.getValorOpcao() + "\n";
+                }
+                Integer choice = ui.showMenu("> GERENCIAR MATRÍCULAS", menuOptions, EnrollmentMenuOption.values().length);
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + EnrollmentMenuOption.values().length + ".");
-                continue;
-            }
+                if (choice == null) { running = false; continue; }
 
-            EnrollmentMenuOption option = EnrollmentMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                EnrollmentMenuOption option = EnrollmentMenuOption.fromNumber(choice);
+                if (option == null) continue;
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + EnrollmentMenuOption.values().length + ".");
-                continue;
-            }
-
-            switch (option) {
-                case MATRICULAR:        enrollStudent();          break;
-                case CONSULTAR_ATIVA:   findActiveEnrollment();   break;
-                case HISTORICO:         listHistory();            break;
-                case CANCELAR:          cancelEnrollment();       break;
-                case REGISTRAR_PAGAMENTO: registerPayment();     break;
-                case VOLTAR:            running = false;          break;
+                switch (option) {
+                    case MATRICULAR:        enrollStudent();          break;
+                    case CONSULTAR_ATIVA:   findActiveEnrollment();   break;
+                    case HISTORICO:         listHistory();            break;
+                    case CANCELAR:          cancelEnrollment();       break;
+                    case REGISTRAR_PAGAMENTO: registerPayment();     break;
+                    case VOLTAR:            running = false;          break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
@@ -70,29 +68,28 @@ public class EnrollmentMenu {
      * Fluxo de matrícula de um aluno em um plano.
      */
     private void enrollStudent() {
-        String cpf = ui.getInput("Digite o CPF do aluno:");
+        String cpf = askValidCpf("Digite o CPF do aluno:");
         if (cpf == null) return;
 
-        String planName = ui.getInput("Digite o nome do plano:");
+        String planName = ui.getInput("Digite o nome do plano:", "Nome do plano");
         if (planName == null) return;
 
-        String startDateStr = ui.getInput("Digite a data de início da matrícula (dd/mm/aaaa):");
-        if (startDateStr == null) return;
+        LocalDate startDate = ui.getDate("Digite a data de início da matrícula (dd/mm/aaaa):", "Data de início");
+        if (startDate == null) return;
+        String startDateStr = DateFormatter.formatDate(startDate);
 
-        String durationStr = ui.getInput("Digite a duração (em meses):");
-        if (durationStr == null) return;
-
-        int durationMonths = InputParser.parseIntSafe(durationStr);
-        if (durationMonths == InputParser.INVALID_INT || durationMonths <= 0) {
+        Integer durationBoxed = ui.getInt("Digite a duração (em meses):", "Duração do plano");
+        if (durationBoxed == null) return;
+        int durationMonths = durationBoxed;
+        if (durationMonths <= 0) {
             ui.showError("A duração deve ser um número positivo.");
             return;
         }
 
-        String initialAmountStr = ui.getInput("Digite o valor do pagamento inicial (ex: 99,90):");
-        if (initialAmountStr == null) return;
-
-        double initialAmount = InputParser.parseDoubleSafe(initialAmountStr);
-        if (initialAmount == InputParser.INVALID_DOUBLE || initialAmount <= 0) {
+        Double initialAmountBoxed = ui.getDouble("Digite o valor do pagamento inicial (ex: 99,90):", "Valor do pagamento inicial");
+        if (initialAmountBoxed == null) return;
+        double initialAmount = initialAmountBoxed;
+        if (initialAmount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }
@@ -106,11 +103,11 @@ public class EnrollmentMenu {
         String paymentDescription = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (paymentDescription == null) paymentDescription = "Pagamento inicial de matrícula";
 
-        OperationResult result = fitManager.enrollStudent(cpf, planName, startDateStr,
+        OperationResult<Enrollment> result = fitManager.enrollStudent(cpf, planName, startDateStr,
                 durationMonths, initialAmount, paymentType, paymentDescription, paymentData);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage(result.getMessage() + "\n\n" + buildEnrollmentSummary(enrollment));
         } else {
             ui.showError(result.getMessage());
@@ -121,13 +118,13 @@ public class EnrollmentMenu {
      * Fluxo de consulta da matrícula ativa de um aluno.
      */
     private void findActiveEnrollment() {
-        String cpf = ui.getInput("Digite o CPF do aluno:");
+        String cpf = askValidCpf("Digite o CPF do aluno:");
         if (cpf == null) return;
 
-        OperationResult result = fitManager.findActiveEnrollmentByStudent(cpf);
+        OperationResult<Enrollment> result = fitManager.findActiveEnrollmentByStudent(cpf);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage("Matrícula ativa encontrada:\n\n" + buildEnrollmentSummary(enrollment));
         } else {
             ui.showError(result.getMessage());
@@ -138,17 +135,17 @@ public class EnrollmentMenu {
      * Fluxo de listagem do histórico de matrículas de um aluno.
      */
     private void listHistory() {
-        String cpf = ui.getInput("Digite o CPF do aluno:");
+        String cpf = askValidCpf("Digite o CPF do aluno:");
         if (cpf == null) return;
 
-        OperationResult result = fitManager.listEnrollmentHistory(cpf);
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listEnrollmentHistory(cpf);
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         String message = "> HISTÓRICO DE MATRÍCULAS\n";
         message += "Total: " + enrollments.size() + " matrícula(s)\n\n";
 
@@ -167,14 +164,9 @@ public class EnrollmentMenu {
      * Fluxo de cancelamento de uma matrícula.
      */
     private void cancelEnrollment() {
-        String codeStr = ui.getInput("Digite o código da matrícula a cancelar:");
-        if (codeStr == null) return;
-
-        int code = InputParser.parseIntSafe(codeStr);
-        if (code == InputParser.INVALID_INT) {
-            ui.showError("Código inválido.");
-            return;
-        }
+        Integer codeBoxed = ui.getInt("Digite o código da matrícula a cancelar:", "Código da matrícula");
+        if (codeBoxed == null) return;
+        int code = codeBoxed;
 
         String confirm = ui.getInput("Tem certeza que deseja cancelar a matrícula " + code +
                 "?\nDigite 'S' para confirmar ou qualquer outra tecla para cancelar:");
@@ -183,7 +175,7 @@ public class EnrollmentMenu {
             return;
         }
 
-        OperationResult result = fitManager.cancelEnrollment(code);
+        OperationResult<Enrollment> result = fitManager.cancelEnrollment(code);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -196,20 +188,14 @@ public class EnrollmentMenu {
      * Fluxo de registro de um novo pagamento para uma matrícula.
      */
     private void registerPayment() {
-        String codeStr = ui.getInput("Digite o código da matrícula:");
-        if (codeStr == null) return;
+        Integer codeBoxed = ui.getInt("Digite o código da matrícula:", "Código da matrícula");
+        if (codeBoxed == null) return;
+        int code = codeBoxed;
 
-        int code = InputParser.parseIntSafe(codeStr);
-        if (code == InputParser.INVALID_INT) {
-            ui.showError("Código inválido.");
-            return;
-        }
-
-        String amountStr = ui.getInput("Digite o valor do pagamento (ex: 99,90):");
-        if (amountStr == null) return;
-
-        double amount = InputParser.parseDoubleSafe(amountStr);
-        if (amount == InputParser.INVALID_DOUBLE || amount <= 0) {
+        Double amountBoxed = ui.getDouble("Digite o valor do pagamento (ex: 99,90):", "Valor do pagamento");
+        if (amountBoxed == null) return;
+        double amount = amountBoxed;
+        if (amount <= 0) {
             ui.showError("O valor deve ser positivo.");
             return;
         }
@@ -223,7 +209,7 @@ public class EnrollmentMenu {
         String description = ui.getInput("Digite uma descrição para o pagamento (opcional):");
         if (description == null) description = "Pagamento adicional";
 
-        OperationResult result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
+        OperationResult<Payment> result = fitManager.registerPayment(code, amount, paymentType, description, paymentData);
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
@@ -233,89 +219,125 @@ public class EnrollmentMenu {
     }
 
     /**
-     * Auxilia na seleção de um tipo de pagamento.
-     * Exibe todas as opções e retorna a escolha do usuário.
+     * Apresenta o menu de tipos de pagamento e devolve o {@link PaymentType}
+     * escolhido pelo usuário. Reutiliza {@link #{ui.showMenu}(String, String, int)}
+     * para já validar opção numéricano intervalo.
+     * Cancel/fechar retorna {@code null}.
      */
     private PaymentType selectPaymentType() {
-        String options = "Escolha o tipo de pagamento:\n";
+        StringBuilder options = new StringBuilder("Escolha o tipo de pagamento:\n");
         int count = 1;
         for (PaymentType type : PaymentType.values()) {
-            options += count + " - " + type.getLabel() + "\n";
+            options.append(count).append(" - ").append(type.getLabel()).append("\n");
             count++;
         }
-
-        while (true) {
-            String input = ui.getInput(options + "\nOpção:");
-            if (input == null) return null;
-
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Digite um número válido.");
-                continue;
-            }
-
-            int choice = Integer.parseInt(input.trim());
-            if (choice >= 1 && choice <= PaymentType.values().length) {
-                return PaymentType.values()[choice - 1];
-            } else {
-                ui.showError("Opção inválida. Escolha de 1 a " + PaymentType.values().length + ".");
-            }
-        }
+        Integer choice = ui.showMenu("> TIPO DE PAGAMENTO", options.toString(), PaymentType.values().length);
+        if (choice == null) return null;
+        return PaymentType.values()[choice - 1];
     }
 
     /**
-     * Coleta dados adicionais específicos do tipo de pagamento.
+     * Coleta os dados específicos de cada tipo de pagamento com loops de
+     * validação locais — o usuário não avança para o próximo campo
+     * enquanto o dado atual não for válido. Implementação default
+     * compartilhada entre as duas UIs.
+     *
+     *  - {@code PIX}: chave PIX obrigatória.
+     *  - {@code CREDIT_CARD}: número de parcelas positivo + últimos 4
+     *    dígitos numéricos do cartão.
+     *  - {@code DEBIT_CARD}: últimos 4 dígitos numéricos do cartão.
+     *  - {@code CASH}: valor recebido positivo e {@code >= amount}.
+     *
+     * Cancel/fechar em qualquer campo retorna {@code null}, abortando o
+     * fluxo de pagamento sem deixar o estado pela metade.
      */
     private String[] collectPaymentData(PaymentType paymentType, double amount) {
         switch (paymentType) {
             case PIX:
-                String pixKey = ui.getInput("Digite a chave PIX:");
+                String pixKey = ui.getInput("Digite a chave PIX:", "Chave PIX");
                 if (pixKey == null) return null;
                 return new String[]{pixKey};
 
             case CREDIT_CARD:
-                String installmentsStr = ui.getInput("Digite o número de parcelas:");
-                if (installmentsStr == null) return null;
-                int installments = InputParser.parseIntSafe(installmentsStr);
-                if (installments == InputParser.INVALID_INT || installments <= 0) {
+                int installments;
+                while (true) {
+                    Integer i = ui.getInt("Digite o número de parcelas:", "Número de parcelas");
+                    if (i == null) return null;
+                    if (i > 0) { installments = i; break; }
                     ui.showError("O número de parcelas deve ser um inteiro positivo.");
-                    return null;
                 }
-
-                String creditDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
-                if (creditDigits == null) return null;
-                if (creditDigits.trim().length() != 4 || !InputParser.isNumeric(creditDigits.trim())) {
+                String creditDigits;
+                while (true) {
+                    String d = ui.getInput("Digite os últimos 4 dígitos do cartão:", "Últimos 4 dígitos do cartão");
+                    if (d == null) return null;
+                    if (isFourDigitNumber(d)) { creditDigits = d; break; }
                     ui.showError("Informe exatamente 4 dígitos numéricos.");
-                    return null;
                 }
-
-                return new String[]{String.valueOf(installments), creditDigits.trim()};
+                return new String[]{String.valueOf(installments), creditDigits};
 
             case DEBIT_CARD:
-                String debitDigits = ui.getInput("Digite os últimos 4 dígitos do cartão:");
-                if (debitDigits == null) return null;
-                if (debitDigits.trim().length() != 4 || !InputParser.isNumeric(debitDigits.trim())) {
+                String debitDigits;
+                while (true) {
+                    String d = ui.getInput("Digite os últimos 4 dígitos do cartão:", "Últimos 4 dígitos do cartão");
+                    if (d == null) return null;
+                    if (isFourDigitNumber(d)) { debitDigits = d; break; }
                     ui.showError("Informe exatamente 4 dígitos numéricos.");
-                    return null;
                 }
-
-                return new String[]{debitDigits.trim()};
+                return new String[]{debitDigits};
 
             case CASH:
-                String receivedStr = ui.getInput(
-                        "Digite o valor recebido em dinheiro (Valor a receber " + CurrencyFormatter.formatCurrency(amount) + "):"
-                );
-                if (receivedStr == null) return null;
-
-                double received = InputParser.parseDoubleSafe(receivedStr);
-                if (received == InputParser.INVALID_DOUBLE || received <= 0) {
-                    ui.showError("O valor recebido deve ser positivo.");
-                    return null;
+                double received;
+                while (true) {
+                    Double r = ui.getDouble(
+                            "Digite o valor recebido em dinheiro (Valor a receber " +
+                                    CurrencyFormatter.formatCurrency(amount) + "):",
+                            "Valor recebido em dinheiro"
+                    );
+                    if (r == null) return null;
+                    if (r <= 0) { ui.showError("O valor recebido deve ser positivo."); continue; }
+                    if (r < amount) {
+                        ui.showError("O valor recebido (" + CurrencyFormatter.formatCurrency(r) +
+                                ") deve ser maior ou igual ao valor do pagamento (" +
+                                CurrencyFormatter.formatCurrency(amount) + ").");
+                        continue;
+                    }
+                    received = r;
+                    break;
                 }
-
-                return new String[]{receivedStr.trim()};
+                return new String[]{String.valueOf(received)};
 
             default:
                 return new String[0];
+        }
+    }
+
+    /**
+     * Verifica se {@code value} é composta por exatamente 4 dígitos numéricos.
+     * Usado por {@link #collectPaymentData(PaymentType, double)} para validar
+     * os últimos 4 dígitos do cartão.
+     */
+    private static boolean isFourDigitNumber(String value) {
+        if (value == null || value.length() != 4) return false;
+        return value.chars().allMatch(Character::isDigit);
+    }
+
+    /**
+     * Verificar se um cpf é valido, e solicitar novamente
+     * caso não for valido
+    */
+    private String askValidCpf(String prompt) {
+
+        while (true) {
+
+            String cpf = ui.getInput(prompt, "CPF");
+
+            OperationResult<String> result = fitManager.validateCpf(cpf);
+
+            if (result.isSuccess()) {
+                return result.getData();
+            }
+
+            ui.showError(result.getMessage());
         }
     }
 

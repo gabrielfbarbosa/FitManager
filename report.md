@@ -745,6 +745,25 @@ Os pagamentos são registrados com `LocalDateTime.now()` em vez de `LocalDate.no
 
 A classe `mocks.DataMock` popula o sistema com cenários representativos controlados pela flag `DEV_MODE` em `FitManagerApp`.
 
+### 6.6 Método genérico de busca com predicado
+
+**O que foi implementado:** a classe utilitária `CollectionUtils`, no pacote `util`, define o método estático genérico `filter(ArrayList<T> source, Predicate<T> criterion)`. O método recebe uma coleção tipada e um critério de seleção, percorre a lista uma única vez e devolve um novo `ArrayList<T>` contendo apenas os elementos aprovados pelo predicado.
+
+**Classes criadas:** `CollectionUtils`, em `util`.
+
+**Classes modificadas:** `StudentService` e `EnrollmentService`. Os métodos de listagem que antes repetiam loops de filtragem passaram a delegar a iteração para `CollectionUtils.filter`, mantendo nos serviços apenas o critério de negócio.
+
+**Conceitos aplicados:** generics (`<T>`), coleção genérica (`ArrayList<T>`) e interface funcional (`Predicate<T>`). Quando o critério já existe como método no contexto específico, ele é passado por referência de método, por exemplo `Student::isActive` e `filter::matches`.
+
+**Decisão arquitetural:** o método foi colocado em `util` porque a estrutura da filtragem não pertence especificamente a alunos, planos ou matrículas. A regra de negócio continua nos serviços: `StudentService` decide que a listagem deve retornar alunos ativos; `EnrollmentService` decide critérios como matrícula ativa, saldo pendente ou histórico por CPF. O menu continua apenas exibindo resultados e não acessa coleções diretamente.
+
+**Quatro perguntas:**
+
+1. *A funcionalidade agrega valor real ao domínio?* Sim — sistemas de gestão de academia dependem de consultas frequentes por critérios, como alunos ativos, matrículas ativas, histórico de um aluno e matrículas com saldo pendente.
+2. *Aplica conceitos centrais desta etapa?* Sim — o método é genuinamente genérico, pois funciona com qualquer tipo `T`; além disso, usa `Predicate<T>` para representar critérios de seleção sem duplicar a lógica de iteração.
+3. *Está bem posicionada na arquitetura?* Sim — a operação transversal fica em `util`, enquanto os serviços preservam a responsabilidade de definir os critérios de negócio. Nenhuma regra foi movida para os menus.
+4. *Há impacto em classes existentes?* Baixo — foram alterados apenas métodos de listagem em `StudentService` e `EnrollmentService`, sem mudar assinaturas públicas, mensagens de retorno ou regras de negócio.
+
 ---
 
 ## 7. Dificuldades e aprendizados da Etapa 2
@@ -776,3 +795,488 @@ A classe `mocks.DataMock` popula o sistema com cenários representativos control
 - Estabelecer desde o início da etapa 2 quais métodos seriam abstratos em cada superclasse, antes de escrever qualquer código — a análise no papel economiza tempo de refatoração no editor.
 - Criar cenários de teste mais abrangentes no `DataMock` para cobrir os novos fluxos (cancelamento com taxa, pagamento em dinheiro com troco, matrícula com desconto) desde o início do desenvolvimento.
 - Remover imports não utilizados como parte do checklist de cada commit, evitando que fiquem acumulados.
+
+
+---
+
+# Relatório — FitManager (Etapa 3)
+
+## 1. Introdução da Etapa 3
+
+A Etapa 3 consolida o FitManager em quatro frentes de trabalho, todas integradas à
+arquitetura em camadas já estabelecida nas etapas anteriores: **(1) generics**, com a
+parametrização de `OperationResult<T>`, a introdução da classe genérica abstrata
+`Repository<T>` e do método genérico `CollectionUtils.filter`; **(2) tratamento de
+exceções**, com uma hierarquia personalizada organizada em categorias (validação,
+regra de negócio e persistência) a partir de exceções-base do sistema; **(3)
+persistência em arquivos**, gravando e recuperando todo o estado entre sessões em
+arquivos de texto (CSV) com preservação dos tipos polimórficos; e **(4) o relatório
+financeiro mensal**, única funcionalidade inteiramente nova, que agrega receita por
+período aproveitando o polimorfismo das hierarquias da Etapa 2.
+
+A etapa combinou **refatoração** de código existente (parametrização de tipos,
+extração da camada de repositório, centralização da validação de entradas) com
+**adição** de funcionalidades novas (persistência, relatório). A diretriz que guiou
+todas as decisões foi a coerência arquitetural: cada mecanismo novo foi posicionado
+na camada adequada, e nenhuma funcionalidade das Etapas 1/2 foi regredida no processo.
+
+## 2. Diagrama de classes atualizado
+
+O diagrama foi atualizado em `diagram.puml` (renderizado em `diagram.png`/`diagram.jpg`)
+e agora reflete o sistema ao final da Etapa 3: `OperationResult<T>` com o parâmetro de
+tipo, a classe genérica `Repository<T>` com `save()`/`load()` abstratos e seus três
+repositórios concretos, a hierarquia completa de exceções (duas raízes — `FitManagerException`
+e `PersistenceException`), os pacotes novos `persistence` e `exceptions`, as factories
+`PlanFactory`/`PaymentFactory`, a classe de resultado `FinancialReport` e o utilitário
+genérico `CollectionUtils`. A versão da Etapa 2 foi preservada como `diagram-parte-2.png`.
+
+## 3. Decisões de projeto da Etapa 3
+
+Cada decisão abaixo segue o formato **decisão → alternativas consideradas → critério →
+impacto**, com referência a classes e métodos reais do sistema.
+
+### 3.1 Convenção para operações sem dado de retorno
+
+**Decisão:** operações que comunicam apenas sucesso/falha, sem objeto associado
+(`updatePlanPrice`, `removeStudent`), usam `OperationResult<Void>` com `data = null`.
+**Alternativas:** `OperationResult<Object>` (perde a intenção e reabre espaço para
+casts) ou criar uma classe separada `VoidResult` (duplicaria o tipo). **Critério:**
+`java.lang.Void` existe exatamente para representar ausência de valor em contexto
+genérico, e manter o mesmo tipo (`OperationResult<T>`) em todo o sistema preserva a
+uniformidade — o menu trata qualquer retorno da mesma forma (`isSuccess()` +
+`getMessage()`). **Impacto:** convenção única e previsível; qualquer operação sem dado
+é imediatamente reconhecível pela assinatura `OperationResult<Void>`.
+
+### 3.2 Estratégia de refatoração em cascata de `OperationResult<T>`
+
+**Decisão:** a parametrização foi feita em um branch dedicado
+(`feature/generic-operation-result`), avançando por camadas — primeiro a classe
+`OperationResult`, depois os serviços, o `FitManager` e por fim os menus — conforme o
+histórico de commits ("Atualiza os Services...", "Atualiza Menus...", "Atualiza os dados
+de exemplo..."). **Alternativas:** alterar tudo de uma vez (deixaria o projeto sem
+compilar por um longo período) ou usar um tipo intermediário temporário. **Critério:**
+parametrizar primeiro a classe e seguir camada a camada mantém o projeto compilando em
+cada passo e isola o que quebra. **Impacto:** como `OperationResult` afeta todos os
+serviços e menus, integrá-lo cedo fez com que as demais branches da etapa já
+trabalhassem sobre a base parametrizada, reduzindo conflitos de merge.
+
+### 3.3 Repositório genérico — o que é genuinamente comum entre os serviços
+
+**Decisão:** `Repository<T>` (abstrata, em `persistence`) centraliza o que era
+estruturalmente idêntico nos três serviços: a coleção tipada `ArrayList<T> items` e as
+operações `listAll()`, `count()`, `isEmpty()`, `add(T)` e `remove(T)`; além disso,
+declara `save()` e `load()` **abstratos**. **Alternativas:** generalizar também busca e
+validação (rejeitado) ou centralizar só `listAll()` (eliminaria pouca duplicação).
+**Critério:** os critérios de busca diferem por domínio (aluno por CPF em
+`StudentRepository.findByCpf`, plano por nome, matrícula por código) e as validações são
+específicas — portanto permanecem nos serviços/repositórios concretos; só o que tem a
+**mesma assinatura e a mesma lógica** subiu para a abstração. **Impacto:** a duplicação
+real da coleção e das operações estruturais foi eliminada, e `save()`/`load()` abstratos
+criam um contrato verificado em tempo de compilação que qualquer repositório futuro é
+obrigado a cumprir.
+
+### 3.4 Herança ou composição para o `Repository<T>`
+
+**Decisão:** os repositórios **concretos** herdam de `Repository<T>`
+(`StudentRepository extends Repository<Student>`), mas os **serviços** se relacionam com
+os repositórios por **composição** (`StudentService` tem um atributo
+`private StudentRepository repository`). **Alternativas:** `StudentService extends
+Repository<Student>` (herança direta serviço↔repositório). **Critério:** o teste
+semântico da Etapa 2 — um `StudentService` *não é* um repositório; ele *usa* um
+repositório para armazenar e persistir alunos. Herdar misturaria duas responsabilidades
+(regra de negócio + estrutura de armazenamento) na mesma classe. **Impacto:** o serviço
+mantém responsabilidade única (regras de negócio) e delega armazenamento/persistência ao
+repositório composto, exposto via `getRepository()` para o `FitManager` coordenar a carga
+e a gravação.
+
+### 3.5 Parâmetro de tipo limitado (`T extends ...`) é necessário?
+
+**Decisão:** **não** usar parâmetro de tipo limitado em `Repository<T>` — `T` é
+irrestrito. **Alternativas:** criar uma interface `Identifiable` e usar
+`Repository<T extends Identifiable>` para padronizar buscas por identificador.
+**Critério:** as operações que sobem para a abstração (`listAll`, `count`, `isEmpty`,
+`add`, `remove`) não chamam nenhum método específico de `T` — elas operam sobre a
+coleção, não sobre o conteúdo. A identificação (CPF, nome, código) é heterogênea e fica
+nos concretos. Forçar um parâmetro limitado adicionaria uma interface e complexidade sem
+necessidade real. **Impacto:** abstração mais simples; se no futuro a busca por
+identificador precisar subir para a superclasse, a introdução de `Identifiable` será o
+próximo passo natural.
+
+### 3.6 `nextCode` como caso especial do `EnrollmentService`
+
+**Decisão:** o contador estático `Enrollment.nextCode` é persistido como uma **diretiva
+de comentário** no topo de `enrollments.txt` (`# nextCode=N`) e restaurado na leitura via
+`Enrollment.setNextCode(int)`. A gravação/leitura dessa diretiva fica dentro de
+`EnrollmentRepository.save()/load()`, sem que `Repository<T>` conheça o detalhe.
+**Alternativas:** arquivo separado só para o contador, ou recomputar `nextCode` como
+`max(código)+1` na carga (frágil se houver remoções). **Critério:** o `nextCode` pertence
+à lógica do `EnrollmentService`, não à estrutura genérica; gravá-lo como diretiva no
+próprio arquivo de matrículas mantém tudo num lugar só e a abstração genérica intacta.
+**Impacto:** após reiniciar, a próxima matrícula recebe o código seguinte ao último
+usado, sem repetição — verificável reabrindo o sistema e criando uma nova matrícula.
+
+### 3.7 `ArrayList` vs `List` como tipo de referência
+
+**Decisão:** manter `ArrayList<T>` como tipo concreto nas assinaturas (ex.:
+`OperationResult<ArrayList<Student>>`, `Repository.listAll(): ArrayList<T>`), preservando
+a convenção das Etapas 1/2. **Alternativas:** migrar para `List<T>` (programar para a
+interface). **Critério:** a mudança não traria benefício concreto no estado atual (não há
+intenção de trocar a implementação por `LinkedList`), e revisar todas as assinaturas
+introduziria risco de regressão sem ganho — contrariando o princípio de não regredir.
+**Impacto:** consistência com o código existente; a migração para `List` continua sendo
+uma melhoria de baixo custo caso uma implementação alternativa passe a ser necessária.
+
+### 3.8 Exceções verificadas vs não verificadas (política por categoria)
+
+**Decisão:** duas raízes intencionalmente separadas. As exceções de **domínio**
+(`FitManagerException extends RuntimeException` → `ValidationException`,
+`BusinessException` e suas folhas) são **não verificadas**; as de **persistência**
+(`PersistenceException extends Exception` → `CorruptedFileException`,
+`WriteFailureException`) são **verificadas**. **Critério (Effective Java, item 70):** use
+verificadas para condições das quais o chamador pode razoavelmente se recuperar e que
+precisa conhecer em tempo de compilação. Uma falha de arquivo na inicialização exige que
+o chamador (`FitManagerApp`) decida conscientemente o que fazer (iniciar vazio, avisar,
+encerrar) — daí ser verificada. Já uma falha de validação/negócio é tratada de forma
+centralizada nos menus com `catch (FitManagerException)`, e espalhar `throws` por toda a
+cadeia seria mais ruído do que informação — daí ser não verificada. **Três exemplos:**
+`RequiredFieldException` (validação, não verificada, lançada em
+`StudentService.validateRequiredFields`); `StudentWithActiveEnrollmentException` (negócio,
+não verificada, lançada em `FitManager.removeStudent`); `CorruptedFileException`
+(persistência, verificada, lançada em `StudentRepository.load`). **Impacto deliberado:**
+`catch (FitManagerException e)` **não** captura falhas de persistência — a fronteira entre
+camadas é preservada pelo próprio sistema de tipos.
+
+### 3.9 Quando lançar exceção e quando retornar `OperationResult` com falha
+
+**Decisão:** `OperationResult(success = false)` para resultados **normais e esperados** do
+fluxo (CPF não encontrado, lista vazia, CPF duplicado, data futura, período sem dados);
+**exceção** para o que **quebra o fluxo** (campo obrigatório ausente, formato inválido na
+conversão, falha de arquivo). **Critério:** `OperationResult` comunica o desfecho de algo
+que o usuário pediu e o sistema avaliou; a exceção escala uma situação em que o código não
+consegue continuar normalmente. **Exemplos concretos:** CPF duplicado em
+`StudentService.registerStudent` → `OperationResult` com falha; campo obrigatório vazio →
+`RequiredFieldException`; arquivo ilegível em `EnrollmentRepository.load` →
+`CorruptedFileException`. **Impacto:** o chamador sabe o que esperar de cada método sem ler
+a implementação — fluxo previsível e uniforme.
+
+### 3.10 Onde lançar e onde capturar (mapa por camada)
+
+**Decisão e mapa:** exceções de **validação/negócio** são lançadas nos serviços/`FitManager`
+e capturadas nos **menus** (`StudentMenu`, `PlanMenu`, `EnrollmentMenu`, `MainMenu`,
+`ReportsMenu`) por `catch (FitManagerException e) { ui.showError(e.getMessage()); }`.
+Exceções de **persistência** são lançadas nos repositórios e capturadas **fora dos menus**,
+no `FitManagerApp` (`loadData`/`saveData`) — nunca num menu. **Critério:** a camada que
+detecta o problema lança; a que sabe comunicá-lo ao usuário captura. Um menu capturando
+`PersistenceException` significaria que a apresentação conhece detalhes de infraestrutura.
+**Impacto:** as fronteiras de camada são respeitadas e verificáveis — uma busca por
+`PersistenceException` em `src/ui` retorna vazio.
+
+### 3.11 Relançar, encapsular ou tratar localmente
+
+**Decisão:** os repositórios **encapsulam** as exceções de I/O da API Java em exceções da
+hierarquia de persistência. Em `StudentRepository.load`, um `IOException` vira
+`CorruptedFileException`; em `save`, um `IOException` vira `WriteFailureException` (ambos
+preservando a causa original via `new ...Exception(path, e)`). **Alternativa:** deixar
+`IOException` vazar até o `FitManager`. **Critério:** o `FitManager`/`FitManagerApp` não
+precisa saber que a persistência usa `BufferedWriter`/arquivos — só que houve falha de
+persistência. **Impacto:** o mecanismo de persistência poderia ser trocado (ex.: binário)
+sem afetar as camadas superiores; o encapsulamento mantém o acoplamento baixo.
+
+### 3.12 Validação de entradas: menu ou `UserInterface`?
+
+**Decisão:** centralizar a conversão e o tratamento na `UserInterface`, com a lógica
+compartilhada na abstrata `BaseUserInterface`. Os métodos `getInt`, `getDouble`, `getDate`
+e `showMenu` convertem a entrada, exibem o formato esperado em caso de erro e repetem a
+solicitação; o parsing genérico é feito por `readAndParse(...)` usando a interface
+funcional `UserInputParser<T>`. **Alternativa:** `try-catch` repetido em cada menu.
+**Critério:** centralizar elimina a duplicação e garante comportamento idêntico em todos os
+menus; o custo (colocar conversão na UI) é aceitável porque `BaseUserInterface` isola essa
+responsabilidade das primitivas de I/O das UIs concretas. **Impacto:** nenhum
+`NumberFormatException`/`DateTimeParseException` chega ao terminal; `TerminalUI` e
+`JOptionPaneUI` herdam o mesmo comportamento de validação.
+
+### 3.13 Texto vs binário; como o tipo concreto é gravado e lido
+
+**Decisão:** **arquivos de texto (CSV, delimitador `;`)** em `data/`. O **tipo concreto**
+é gravado como campo da linha — primeiro campo em `plans.txt` (`type`) e segundo em
+`payments.txt` — e reconstruído na leitura via `PlanFactory.create(...)` e
+`PaymentFactory.create(...)`. **Alternativa:** serialização binária (`ObjectOutputStream`),
+que preservaria o tipo automaticamente. **Critério:** texto pode ser inspecionado e
+corrigido em qualquer editor, o que facilitou enormemente o desenvolvimento e a depuração;
+o custo (escrever a conversão objeto↔texto) é compensado por essa transparência, e a
+serialização binária traria fragilidade de versionamento. **Impacto:** após a recarga,
+`MonthlyPlan`/`AnnualPlan` etc. respondem corretamente a `calculateTotalPrice()` e
+`getCancellationFee()`, e cada `Payment` preserva seus atributos específicos — o
+polimorfismo sobrevive ao ciclo. A escrita dos campos específicos de pagamento foi feita de
+forma polimórfica via `Payment.getCsvExtraFields()` (sem `instanceof`), espelhando a leitura.
+
+### 3.14 Referências cruzadas: identificadores vs objeto inteiro
+
+**Decisão:** a matrícula grava apenas **identificadores** das suas referências — CPF do
+aluno e nome do plano — e as reconstitui na leitura buscando os objetos já carregados em
+memória (`resolvePlan` e a verificação por `studentRepository.findByCpf`). **Alternativa:**
+gravar o objeto inteiro de aluno e plano dentro da matrícula (duplicação e risco de
+inconsistência se o aluno fosse atualizado depois). **Critério:** cada entidade existe em um
+único lugar no arquivo; a referência é reconstruída por identificador. **Impacto:** impõe
+uma ordem de carga (alunos e planos antes das matrículas) e um tratamento para o caso fora
+de sincronia: se uma matrícula referencia um CPF/plano inexistente, a leitura lança
+`CorruptedFileException` identificando a linha, em vez de criar uma referência nula
+silenciosa.
+
+### 3.15 Quando sincronizar memória e arquivo
+
+**Decisão:** persistir **no encerramento** (opção "Sair" do menu principal), via
+`FitManager.saveAll()`. **Alternativa:** salvar a cada operação relevante. **Critério:**
+salvar no encerramento é eficiente e simples; salvar a cada operação introduziria I/O
+constante. **Impacto (reconhecido explicitamente):** um encerramento inesperado (queda de
+energia, kill do processo) perde as alterações da sessão. Essa é uma limitação conhecida e
+aceita; a funcionalidade extra de gravação atômica/backup foi considerada (ver §3.18) como
+evolução futura.
+
+### 3.16 Onde fica a responsabilidade de persistência
+
+**Decisão:** a persistência reside em um **pacote `persistence` dedicado**, com um
+repositório por entidade; o `FitManager` apenas **coordena** a ordem (`loadAll`/`saveAll`) e
+os serviços apenas conhecem seu repositório por composição. **Alternativas:** colocar
+`save/load` direto nos serviços (acumularia duas responsabilidades) ou um único
+`DataManager` central (menos coeso, conheceria todas as entidades ao mesmo tempo).
+**Critério:** separar a persistência preserva a responsabilidade única e a arquitetura em
+camadas; o custo (mais classes) é compensado pela coesão. **Impacto:** o domínio não importa
+`persistence`; a camada é claramente identificável no projeto.
+
+### 3.17 O que caracteriza "arquivo corrompido" e o que o sistema faz
+
+**Decisão:** considera-se corrompido um arquivo com linha de campos insuficientes, campo que
+não converte para o tipo esperado (data, número, enum) ou referência cruzada inexistente.
+Cada caso lança `CorruptedFileException` com a identificação do arquivo e da linha (ex.:
+`"linha 4 com número insuficiente de campos"`, `"data inválida na linha 3"`, `"aluno com CPF
+... referenciado na linha 5 não encontrado"`). **Política ao detectar:** a leitura é
+interrompida e a falha sobe como `PersistenceException`; o `FitManagerApp` informa o usuário
+e segue com o que foi carregado até o erro, sem encerrar abruptamente. **Critério:**
+interromper e comunicar é mais seguro do que ignorar silenciosamente registros (que
+esconderia perda de dados). **Impacto:** o usuário sempre sabe qual arquivo e qual linha
+causaram o problema.
+
+### 3.18 Falha parcial de gravação no encerramento
+
+**Decisão:** `saveAll()` grava na ordem `enrollments → plans → students`; se um repositório
+falhar, a exceção sobe e o `FitManagerApp` (`saveData`) **avisa o usuário** que as
+alterações da sessão podem não ter sido salvas — o sistema nunca encerra silenciosamente.
+**Alternativa avaliada (não implementada):** gravação atômica em dois passos (arquivo
+temporário + rename) e backup automático antes da sobrescrita. **Critério:** a comunicação
+clara da falha é o requisito mínimo inegociável; a atomicidade plena ficou registrada como
+melhoria futura por custo/benefício. **Impacto:** não há perda silenciosa; reconhece-se que
+uma falha no meio da sequência pode deixar arquivos de sessões diferentes (limitação
+conhecida).
+
+### 3.19 O paradoxo da interface na inicialização e o `DEV_MODE`
+
+**Decisão:** a interface é escolhida **primeiro** (`selectUserInterface()` via `JOptionPane`,
+antes de qualquer UI existir), e só **depois** os dados são carregados (`loadData`), de modo
+que qualquer erro de carga já possa ser comunicado pela UI escolhida. O `FitManagerApp` foi
+reorganizado em métodos de responsabilidade única (`selectUserInterface`, `loadData`,
+`prepareInitialData`, `saveData`). **Sobre o `DEV_MODE`:** a constante `DEV_MODE` (default
+`false`) popula dados de demonstração (`DataMock`) apenas quando o sistema inicia vazio;
+mantida `false` para a avaliação, a primeira execução inicia vazia, exibindo apenas uma dica
+informativa de que essa opção existe. **Critério:** resolve a dependência circular
+"carregar precisa de UI / escolher UI vem antes" carregando após a escolha. **Impacto:**
+inicialização limpa e previsível; o erro de carga sempre tem uma UI para ser exibido.
+
+### 3.20 Onde reside a lógica de agregação do relatório
+
+**Decisão:** o cálculo é coordenado por `FitManager.generateMonthlyReport(month, year)`, que
+itera as matrículas e alimenta um objeto de **resultado** `FinancialReport` (em
+`application.reports`); o `ReportsMenu` apenas solicita mês/ano e exibe/exporta.
+**Alternativas:** lógica no menu (rejeitado — regra de negócio na apresentação) ou um
+`ReportService` separado. **Critério:** `FinancialReport` é classe de resultado (guarda
+métricas e sabe formatar/exportar), e o `FitManager` já tem acesso às coleções dos serviços,
+sendo o coordenador natural. **Impacto:** o menu não calcula nada; a lógica fica testável e
+fora da camada de UI.
+
+### 3.21 Como agrupar por tipo sem `instanceof`
+
+**Decisão:** os agrupamentos usam `Map<String, Double>`/`Map<String, Integer>` com a chave
+vinda de `Plan.getTypeName()` e `Payment.getTypeName()` — método polimórfico que cada
+subclasse já responde. **Alternativa:** `instanceof`/`getClass()` para identificar o tipo
+concreto. **Critério:** condicionais por tipo são exatamente o que o polimorfismo da Etapa 2
+elimina; `getTypeName()` deixa cada objeto se identificar. **Impacto:** o relatório inteiro
+opera sobre os tipos abstratos `Plan` e `Payment`; **não há nenhum `instanceof` no projeto**
+(inclusive a escrita de pagamentos foi convertida para `getCsvExtraFields()`).
+
+### 3.22 Período sem dados é resultado válido (e o princípio de não retornar `null`)
+
+**Decisão:** um período sem pagamentos retorna `OperationResult<FinancialReport>` com
+**sucesso** e um `FinancialReport` com métricas **zeradas** e mensagem informativa
+(`isEmpty()` controla a nota exibida em `format()`) — nunca exceção, erro ou `null`.
+**Critério:** ausência de dados é um desfecho legítimo da consulta; retornar `null`
+transferiria a todos os chamadores o peso de verificar `null` antes de usar. **Impacto:** o
+menu trata o relatório vazio como qualquer outro. O mesmo princípio orienta o resto do
+sistema (métodos preferem `OperationResult`/objeto vazio a `null`).
+
+### 3.23 Regra de negócio específica: data de inauguração (01/03/2026)
+
+**Decisão:** a FitManager foi inaugurada em 01/03/2026; o `ReportsMenu`
+(`INAUGURATION_YEAR = 2026`, `INAUGURATION_MONTH = 3`) só gera relatórios a partir desse
+período — rejeita ano < 2026 e o par ano = 2026 com mês < 3; de 2027 em diante todos os
+meses (incluindo janeiro e fevereiro) ficam disponíveis. O mês permanece restrito a 1–12.
+**Alternativa:** aceitar qualquer mês 1–12 de qualquer ano e sempre exibir zerado.
+**Critério:** refletir a existência real da academia — não há receita antes da fundação.
+**Impacto:** períodos válidos sem movimento ainda exibem o relatório zerado (conforme o
+enunciado); apenas períodos anteriores à inauguração são bloqueados, com mensagem clara.
+
+## 4. Como os generics eliminaram duplicação e melhoraram a segurança de tipos
+
+**4.1 `OperationResult<T>` — fim dos casts.**
+Antes (Etapa 1), o dado era `Object` e cada menu fazia cast:
+
+```java
+// Antes — OperationResult com Object
+private Object data;
+public Object getData() { return data; }
+
+// No menu:
+Student aluno = (Student) result.getData(); // cast não verificado → risco de ClassCastException
+```
+
+Depois (Etapa 3):
+
+```java
+// Depois — OperationResult<T>
+private T data;
+public T getData() { return data; }
+
+// No menu:
+Student aluno = result.getData(); // sem cast — o compilador garante o tipo
+```
+
+Não há mais nenhum cast sobre `getData()` no projeto, e o compilador verifica a consistência
+em tempo de compilação.
+
+**4.2 `Repository<T>` — fim da coleção e das operações duplicadas.**
+Antes, cada serviço mantinha sua própria coleção e repetia as operações estruturais:
+
+```java
+// Antes — duplicado em StudentService, PlanService, EnrollmentService
+private ArrayList<Student> students = new ArrayList<>();
+public OperationResult<ArrayList<Student>> listAll() { ... itera students ... }
+```
+
+Depois, a coleção tipada e as operações comuns vivem uma única vez em `Repository<T>`, e os
+serviços compõem o repositório concreto:
+
+```java
+// Depois — Repository<T> (uma vez)
+protected ArrayList<T> items = new ArrayList<>();
+public ArrayList<T> listAll() { return new ArrayList<>(items); }
+public int count() { return items.size(); }
+// StudentRepository extends Repository<Student>; StudentService tem um StudentRepository
+```
+
+**4.3 `CollectionUtils.filter` — fim do laço de filtragem repetido.**
+A iteração "percorrer e selecionar por critério" se repetia. Foi extraída para um método
+genérico com `Predicate<T>`:
+
+```java
+public static <T> ArrayList<T> filter(ArrayList<T> source, Predicate<T> criterion) {
+    ArrayList<T> result = new ArrayList<>();
+    for (T item : source) if (criterion.test(item)) result.add(item);
+    return result;
+}
+```
+
+Usado com lambdas/method references em `StudentService.listAll()` (`Student::isActive`) e em
+`EnrollmentService` (histórico por aluno e `listByFilter` via `filter::matches`).
+
+**4.4 Coleções tipadas em todo o sistema.** Não há coleção bruta; os agrupamentos do
+relatório usam `Map<String, Double>`. O projeto compila com `-Xlint:unchecked` sem warnings
+de tipo não verificado.
+
+## 5. Política de exceções e estratégia de persistência (resumo)
+
+**Exceções.** Hierarquia em `exceptions/` com duas raízes: `FitManagerException`
+(RuntimeException, não verificada) → `ValidationException` (`RequiredFieldException`,
+`InvalidFormatFieldException`) e `BusinessException` (`StudentWithActiveEnrollmentException`,
+`DuplicatedEnrollmentException`, `DuplicatedPlanException`); e `PersistenceException`
+(Exception, verificada) → `CorruptedFileException`, `WriteFailureException`. Lançamento nos
+serviços/repositórios; captura de domínio nos menus (`catch FitManagerException`) e de
+persistência no `FitManagerApp`. Nenhum `catch` vazio; nenhuma stack trace chega ao terminal.
+
+**Persistência.** Texto/CSV em `data/` (`students.txt`, `plans.txt`, `enrollments.txt`,
+`payments.txt`); tipo concreto no campo de tipo + factories na leitura; `nextCode` como
+diretiva `# nextCode=N`; ordem de carga alunos/planos → matrículas e gravação inversa
+coordenadas por `FitManager.loadAll/saveAll`; `try-with-resources` em toda leitura/escrita;
+arquivo ausente = início vazio silencioso; arquivo corrompido = `CorruptedFileException` com
+arquivo/linha; falha de escrita = aviso ao usuário sem encerrar em silêncio.
+
+## 6. Funcionalidades extras
+
+### 6.1 Busca genérica por predicado (`CollectionUtils.filter`)
+
+Método genérico `static <T> ArrayList<T> filter(ArrayList<T>, Predicate<T>)` em
+`util.CollectionUtils`, reaproveitado em três pontos com lambdas/method references.
+
+1. **Agrega valor ao domínio?** Sim — centraliza a operação "filtrar uma coleção por um
+   critério", que aparecia repetida (alunos ativos, matrículas de um aluno, matrículas por
+   status/tipo). Uma academia real lista subconjuntos o tempo todo.
+2. **Aplica um conceito central da etapa de forma genuína?** Sim — é um método **genérico**
+   sobre `ArrayList<T>` com `java.util.function.Predicate<T>` (interface funcional),
+   acionado por expressões lambda e method references. Não poderia ser feito assim sem
+   generics.
+3. **Está bem posicionada na arquitetura?** Sim — o utilitário fica em `util` (sem regra de
+   negócio); a lógica de **qual** critério aplicar permanece nos serviços. Exemplo de lambda
+   anotado: em `EnrollmentService`, `CollectionUtils.filter(repository.listAll(), e ->
+   e.getStudentCpf().equals(cpf))` — o `Predicate<Enrollment>` seleciona as matrículas cujo
+   CPF do aluno é igual ao informado.
+4. **Quais classes existentes foram modificadas?** `StudentService.listAll()` e dois métodos
+   de `EnrollmentService` (`listHistoryByStudent` e `listByFilter`) passaram a delegar o laço
+   ao utilitário; `listByFilter` usa `filter::matches`, integrando o padrão Strategy
+   (`EnrollmentFilter`) ao predicado genérico — sem risco para o restante do sistema.
+
+### 6.2 Outras extensões já presentes
+
+Exportação do relatório financeiro para CSV em `data/reports/` (com tratamento de
+`IOException` sem encerrar) e o modo de demonstração `DataMock` (controlado por `DEV_MODE`)
+complementam a etapa, exercitando persistência e tratamento de exceções.
+
+## 7. Dificuldades e aprendizados da Etapa 3
+
+A maior dificuldade foi conduzir **refatoração e adição simultâneas** sem regredir as Etapas
+1/2: a parametrização de `OperationResult<T>` tocou todos os menus e serviços de uma vez, e
+foi preciso avançar por branch dedicada e camada a camada para manter o projeto compilando. A
+persistência polimórfica revelou o ponto mais técnico — a escrita inicial dos campos
+específicos de pagamento usava `instanceof`, o que foi posteriormente substituído pelo método
+polimórfico `Payment.getCsvExtraFields()`, deixando leitura e escrita simétricas e o sistema
+livre de condicionais por tipo. A validação de entradas, antes dispersa, mostrou o valor de
+centralizar comportamento em `BaseUserInterface`.
+
+Decisões anteriores que **facilitaram** esta etapa: os menus já referenciavam
+`UserInterface` (e não a implementação concreta), o `FitManager` já era o único ponto de
+coordenação, e o `OperationResult` já era o padrão de retorno — o que limitou o alcance das
+refatorações. O que **precisou ser revisto**: o campo `data: Object` (dívida técnica
+assumida na Etapa 1) foi finalmente parametrizado; e a validação de mês do relatório, que
+inicialmente bloqueava meses fora de 3–12 de forma rígida, foi corrigida para refletir
+corretamente a regra de inauguração (permitindo jan/fev a partir de 2027). **O que faríamos
+diferente:** definir a fronteira exceção × `OperationResult` no papel antes de codar, e
+planejar o formato dos arquivos de persistência (campos, ordem, diretiva de `nextCode`) antes
+de implementar a leitura/escrita.
+
+## 8. Contribuições individuais (Etapa 3)
+
+As contribuições seguem o histórico de commits do repositório, organizadas pelas branches de
+funcionalidade desta etapa (`feature/generic-operation-result`, `feature/generic-repository`,
+`feature/file-persistence`, `feature/robust-input-validation`, `feature/financial-report`,
+`feature/metodo-busca-predicado`), integradas a `stage-3` via pull requests revisados.
+
+- **Gabriel Felipe Barbosa** — parametrização de `OperationResult<T>` e propagação em
+  serviços/menus; estrutura genérica `Repository<T>` e repositórios concretos; persistência
+  em arquivo (gravação/leitura, factories, `nextCode`); relatório financeiro; remoção do
+  `instanceof` na persistência; reorganização do `FitManagerApp`; documentação (README,
+  diagrama, relatório).
+- **Marcelle Luna Souza** — hierarquia de exceções e sua aplicação nos serviços/menus;
+  validação robusta de entradas centralizada na `UserInterface`/`BaseUserInterface`; revisões
+  de pull request sobre corretude das exceções e consistência dos tipos genéricos; apoio na
+  persistência e nos dados de demonstração.
+
+> Observação: a distribuição acima deve ser conferida e ajustada pelo grupo conforme o
+> histórico real de cada integrante no repositório antes da entrega, garantindo coerência
+> com os commits.

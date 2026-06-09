@@ -66,6 +66,20 @@ public abstract class Payment implements Summarizable {
      */
     public abstract String getPaymentSummary();
 
+    /**
+     * Retorna os campos específicos da subclasse para serialização em arquivo,
+     * na mesma ordem esperada pela leitura ({@code PaymentFactory.create} e
+     * {@code EnrollmentRepository.extractExtraFields}).
+     *
+     * Cada subclasse responde com seus próprios atributos — PIX devolve a chave;
+     * cartão de crédito, parcelas e dígitos; e assim por diante. Isso permite que
+     * a persistência grave os dados polimórficos sem {@code instanceof}: o
+     * repositório apenas itera sobre o array retornado por cada pagamento.
+     *
+     * @return campos específicos da subclasse como texto, na ordem de leitura
+     */
+    public abstract String[] getCsvExtraFields();
+
     // ========================
     // Métodos concretos
     // ========================

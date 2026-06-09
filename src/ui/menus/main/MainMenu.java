@@ -1,10 +1,10 @@
 package ui.menus.main;
 
 import application.FitManager;
+import exceptions.FitManagerException;
 import ui.menus.plan.PlanMenu;
 import ui.menus.reports.ReportsMenu;
 import ui.menus.student.StudentMenu;
-import ui.screen.InputParser;
 import ui.screen.UserInterface;
 
 import ui.menus.enrollment.EnrollmentMenu;
@@ -76,34 +76,33 @@ public class MainMenu {
         boolean running = true;
 
         while (running) {
-            String menuOptions = "";
-            for (MainMenuOption opt : MainMenuOption.values()) {
-                menuOptions += opt.getNumber() + " - " + opt.getOptionName() + "\n";
-            }
-            String input = ui.showMenu("", menuOptions);
+            try {
+                StringBuilder menuOptions = new StringBuilder();
+                for (MainMenuOption opt : MainMenuOption.values()) {
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
+                }
+                Integer choice = ui.showMenu("", menuOptions.toString(), MainMenuOption.values().length);
 
-            if (input == null) {
-                running = false;
-                continue;
-            }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + MainMenuOption.values().length + ".");
-                continue;
-            }
+                if (choice == null) {
+                    running = false;
+                    continue;
+                }
 
-            MainMenuOption option = MainMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                MainMenuOption option = MainMenuOption.fromNumber(choice);
+                if (option == null) {
+                    // Defesa em profundidade — showMenu já valida o intervalo.
+                    continue;
+                }
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + MainMenuOption.values().length + ".");
-                continue;
-            }
-
-            switch (option) {
-                case GERENCIAR_ALUNOS:     getStudentMenu().run();    break;
-                case GERENCIAR_PLANOS:     getPlanMenu().run();       break;
-                case GERENCIAR_MATRICULAS: getEnrollmentMenu().run(); break;
-                case RELATORIOS:           getReportsMenu().run();    break;
-                case SAIR:                 running = false;           break;
+                switch (option) {
+                    case GERENCIAR_ALUNOS:     getStudentMenu().run();    break;
+                    case GERENCIAR_PLANOS:     getPlanMenu().run();       break;
+                    case GERENCIAR_MATRICULAS: getEnrollmentMenu().run(); break;
+                    case RELATORIOS:           getReportsMenu().run();    break;
+                    case SAIR:                 running = false;           break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
 

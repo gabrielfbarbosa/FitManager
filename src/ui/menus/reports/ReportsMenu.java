@@ -2,6 +2,7 @@ package ui.menus.reports;
 
 import application.FitManager;
 import application.OperationResult;
+import application.reports.FinancialReport;
 import domain.model.Enrollment;
 import domain.model.Student;
 import domain.model.enums.PlanType;
@@ -12,9 +13,13 @@ import domain.model.filters.EnrollmentFilter;
 import domain.model.filters.ExpiredEnrollmentFilter;
 import domain.model.filters.PendingBalanceFilter;
 import domain.model.plans.Plan;
-import ui.screen.InputParser;
+import exceptions.FitManagerException;
 import ui.screen.UserInterface;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 /**
@@ -33,6 +38,9 @@ import java.util.ArrayList;
  */
 public class ReportsMenu {
 
+    private static final int INAUGURATION_MONTH = 3;
+    private static final int INAUGURATION_YEAR = 2026;
+
     private UserInterface ui;
     private FitManager fitManager;
 
@@ -49,39 +57,36 @@ public class ReportsMenu {
         boolean running = true;
 
         while (running) {
-            StringBuilder menuOptions = new StringBuilder();
-            for (ReportsMenuOption opt : ReportsMenuOption.values()) {
-                menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
-            }
-            String input = ui.showMenu("> RELATÓRIOS", menuOptions.toString());
+            try {
+                StringBuilder menuOptions = new StringBuilder();
+                for (ReportsMenuOption opt : ReportsMenuOption.values()) {
+                    menuOptions.append(opt.getNumber()).append(" - ").append(opt.getOptionName()).append("\n");
+                }
+                Integer choice = ui.showMenu("> RELATÓRIOS", menuOptions.toString(), ReportsMenuOption.values().length);
 
-            if (input == null) { running = false; continue; }
-            if (!InputParser.isNumeric(input)) {
-                ui.showError("Opção inválida. Digite um número de 1 a " + ReportsMenuOption.values().length + ".");
-                continue;
-            }
+                if (choice == null) { running = false; continue; }
 
-            ReportsMenuOption option = ReportsMenuOption.fromNumber(Integer.parseInt(input.trim()));
+                ReportsMenuOption option = ReportsMenuOption.fromNumber(choice);
+                if (option == null) continue;
 
-            if (option == null) {
-                ui.showError("Opção inválida. Escolha de 1 a " + ReportsMenuOption.values().length + ".");
-                continue;
-            }
-
-            switch (option) {
-                case LISTAR_ALUNOS:        listAllStudents();          break;
-                case LISTAR_PLANOS:        listAllPlans();             break;
-                case LISTAR_MATRICULAS:    listAllEnrollments();       break;
-                case MATRICULAS_ATIVAS:    showFilteredEnrollments(new ActiveEnrollmentFilter());    break;
-                case MATRICULAS_CANCELADAS:showFilteredEnrollments(new CancelledEnrollmentFilter()); break;
-                case SALDO_PENDENTE:       showFilteredEnrollments(new PendingBalanceFilter());      break;
-                case POR_TIPO_PLANO:       filterByPlanType();         break;
-                case VENCIDAS:             showFilteredEnrollments(new ExpiredEnrollmentFilter());    break;
-                case CONSULTAR_ALUNO:      findStudentByCpf();         break;
-                case CONSULTAR_PLANO:      findPlanByName();           break;
-                case CONSULTAR_MATRICULA:  findActiveEnrollment();     break;
-                case ESTATISTICAS:         showStatistics();           break;
-                case VOLTAR:               running = false;            break;
+                switch (option) {
+                    case LISTAR_ALUNOS:        listAllStudents();          break;
+                    case LISTAR_PLANOS:        listAllPlans();             break;
+                    case LISTAR_MATRICULAS:    listAllEnrollments();       break;
+                    case MATRICULAS_ATIVAS:    showFilteredEnrollments(new ActiveEnrollmentFilter());    break;
+                    case MATRICULAS_CANCELADAS:showFilteredEnrollments(new CancelledEnrollmentFilter()); break;
+                    case SALDO_PENDENTE:       showFilteredEnrollments(new PendingBalanceFilter());      break;
+                    case POR_TIPO_PLANO:       filterByPlanType();         break;
+                    case VENCIDAS:             showFilteredEnrollments(new ExpiredEnrollmentFilter());    break;
+                    case CONSULTAR_ALUNO:      findStudentByCpf();         break;
+                    case CONSULTAR_PLANO:      findPlanByName();           break;
+                    case CONSULTAR_MATRICULA:  findActiveEnrollment();     break;
+                    case ESTATISTICAS:         showStatistics();           break;
+                    case RELATORIO_FINANCEIRO: monthlyFinancialReport();   break;
+                    case VOLTAR:               running = false;            break;
+                }
+            } catch (FitManagerException e) {
+                ui.showError(e.getMessage());
             }
         }
     }
@@ -94,14 +99,14 @@ public class ReportsMenu {
      * Lista todos os alunos ativos usando getSummary() para exibição compacta.
      */
     private void listAllStudents() {
-        OperationResult result = fitManager.listAllStudents();
+        OperationResult<ArrayList<Student>> result = fitManager.listAllStudents();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Student> students = (ArrayList<Student>) result.getData();
+        ArrayList<Student> students = result.getData();
         StringBuilder message = new StringBuilder("> TODOS OS ALUNOS\n");
         message.append("Total: ").append(students.size()).append(" aluno(s)\n\n");
 
@@ -119,14 +124,14 @@ public class ReportsMenu {
      * Lista todos os planos cadastrados usando getSummary() para exibição compacta.
      */
     private void listAllPlans() {
-        OperationResult result = fitManager.listAllPlans();
+        OperationResult<ArrayList<Plan>> result = fitManager.listAllPlans();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Plan> plans = (ArrayList<Plan>) result.getData();
+        ArrayList<Plan> plans = result.getData();
         StringBuilder message = new StringBuilder("> TODOS OS PLANOS\n");
         message.append("Total: ").append(plans.size()).append(" plano(s)\n\n");
 
@@ -144,14 +149,14 @@ public class ReportsMenu {
      * Lista todas as matrículas (ativas e canceladas) usando getSummary().
      */
     private void listAllEnrollments() {
-        OperationResult result = fitManager.listAllEnrollments();
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listAllEnrollments();
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         StringBuilder message = new StringBuilder("> TODAS AS MATRÍCULAS\n");
         message.append("Total: ").append(enrollments.size()).append(" matrícula(s)\n\n");
 
@@ -173,16 +178,13 @@ public class ReportsMenu {
      * Consulta um aluno pelo CPF e exibe seus dados completos (toString).
      */
     private void findStudentByCpf() {
-        String cpf = ui.getInput("Digite o CPF do aluno para consulta:");
-        if (cpf == null || cpf.trim().isEmpty()) {
-            ui.showError("Insira um CPF");
-            return;
-        }
+        String cpf = askValidCpf("Digite o CPF do aluno para consulta:");
+        if (cpf == null) return;
 
-        OperationResult result = fitManager.findStudentByCpf(cpf);
+        OperationResult<Student> result = fitManager.findStudentByCpf(cpf);
 
         if (result.isSuccess()) {
-            Student student = (Student) result.getData();
+            Student student = result.getData();
             ui.showMessage("Aluno encontrado:\n\n" + student.toString());
         } else {
             ui.showError(result.getMessage());
@@ -193,16 +195,13 @@ public class ReportsMenu {
      * Consulta um plano pelo nome e exibe seus dados completos (toString).
      */
     private void findPlanByName() {
-        String name = ui.getInput("Digite o nome do plano para consulta:");
-        if (name == null || name.trim().isEmpty()) {
-            ui.showError("Insira um plano");
-            return;
-        }
+        String name = ui.getInput("Digite o nome do plano para consulta:", "Nome do plano");
+        if (name == null) return;
 
-        OperationResult result = fitManager.findPlanByName(name);
+        OperationResult<Plan> result = fitManager.findPlanByName(name);
 
         if (result.isSuccess()) {
-            Plan plan = (Plan) result.getData();
+            Plan plan = result.getData();
             ui.showMessage("Plano encontrado:\n\n" + plan.toString());
         } else {
             ui.showError(result.getMessage());
@@ -213,16 +212,13 @@ public class ReportsMenu {
      * Consulta a matrícula ativa de um aluno pelo CPF e exibe dados completos (toString).
      */
     private void findActiveEnrollment() {
-        String cpf = ui.getInput("Digite o CPF do aluno:");
-        if (cpf == null || cpf.trim().isEmpty()) {
-            ui.showError("Insira um CPF");
-            return;
-        }
+        String cpf = askValidCpf("Digite o CPF do aluno:");
+        if (cpf == null) return;
 
-        OperationResult result = fitManager.findActiveEnrollmentByStudent(cpf);
+        OperationResult<Enrollment> result = fitManager.findActiveEnrollmentByStudent(cpf);
 
         if (result.isSuccess()) {
-            Enrollment enrollment = (Enrollment) result.getData();
+            Enrollment enrollment = result.getData();
             ui.showMessage("Matrícula ativa encontrada:\n\n" + enrollment.toString());
         } else {
             ui.showError(result.getMessage());
@@ -240,14 +236,14 @@ public class ReportsMenu {
      * @param filter filtro polimórfico a ser aplicado
      */
     private void showFilteredEnrollments(EnrollmentFilter filter) {
-        OperationResult result = fitManager.listEnrollmentsByFilter(filter);
+        OperationResult<ArrayList<Enrollment>> result = fitManager.listEnrollmentsByFilter(filter);
 
         if (!result.isSuccess()) {
             ui.showError(result.getMessage());
             return;
         }
 
-        ArrayList<Enrollment> enrollments = (ArrayList<Enrollment>) result.getData();
+        ArrayList<Enrollment> enrollments = result.getData();
         StringBuilder message = new StringBuilder();
         message.append("> ").append(filter.getDescription().toUpperCase()).append("\n");
         message.append("Total: ").append(enrollments.size()).append(" matrícula(s)\n\n");
@@ -274,25 +270,31 @@ public class ReportsMenu {
             options.append(i + 1).append(" - ").append(types[i].getLabel()).append("\n");
         }
 
-        String input = ui.getInput(options.toString());
-        if (input == null || input.trim().isEmpty()) {
-            ui.showError("Selecione um plano");
-            return;
-        }
-
-        if (!InputParser.isNumeric(input)) {
-            ui.showError("Opção inválida. Digite um número de 1 a " + types.length + ".");
-            return;
-        }
-
-        int choice = Integer.parseInt(input.trim());
-        if (choice < 1 || choice > types.length) {
-            ui.showError("Opção inválida. Escolha de 1 a " + types.length + ".");
-            return;
-        }
+        Integer choice = ui.showMenu("> FILTRO POR TIPO DE PLANO", options.toString(), types.length);
+        if (choice == null) return;
 
         PlanType selectedType = types[choice - 1];
         showFilteredEnrollments(new ByPlanTypeFilter(selectedType));
+    }
+
+    /**
+     * Verificar se um cpf é valido, e solicitar novamente
+     * caso não for valido
+     */
+    private String askValidCpf(String prompt) {
+
+        while (true) {
+
+            String cpf = ui.getInput(prompt, "CPF");
+
+            OperationResult<String> result = fitManager.validateCpf(cpf);
+
+            if (result.isSuccess()) {
+                return result.getData();
+            }
+
+            ui.showError(result.getMessage());
+        }
     }
 
     // ============================
@@ -303,12 +305,84 @@ public class ReportsMenu {
      * Exibe estatísticas gerais do sistema.
      */
     private void showStatistics() {
-        OperationResult result = fitManager.getSystemStatistics();
+        OperationResult<Void> result = fitManager.getSystemStatistics();
 
         if (result.isSuccess()) {
             ui.showMessage(result.getMessage());
         } else {
             ui.showError(result.getMessage());
+        }
+    }
+
+    // ============================
+    // Relatório Financeiro Mensal
+    // ============================
+
+    /**
+     * Fluxo do relatório financeiro mensal.
+     * Solicita mês/ano (com validação no próprio getInt), gera o relatório
+     * via {@link FitManager#generateMonthlyReport(int, int)} e exibe o
+     * resultado formatado. Período sem dados é exibido normalmente, com
+     * todas as métricas zeradas e uma nota informativa — não é tratado
+     * como erro.
+     *
+     * Após a exibição, oferece ao usuário a opção de exportar o relatório
+     * para um arquivo CSV em {@code data/reports/}.
+     */
+    private void monthlyFinancialReport() {
+        Integer month = ui.getInt("Digite o mês (1-12):", "Mês");
+        if (month == null) return;
+        if (month < 1 || month > 12) {
+            ui.showError("O mês deve estar entre 1 e 12.");
+            return;
+        }
+
+        Integer year = ui.getInt("Digite o ano (ex: 2026):", "Ano");
+        if (year == null) return;
+
+        // A FitManager foi inaugurada em 01/03/2026: só há relatórios a partir
+        // desse período. Anos seguintes (2027+) têm todos os meses disponíveis,
+        // inclusive janeiro e fevereiro.
+        if (year < INAUGURATION_YEAR
+                || (year == INAUGURATION_YEAR && month < INAUGURATION_MONTH)) {
+            ui.showError("A FitManager foi inaugurada em "
+                    + String.format("%02d/%d", INAUGURATION_MONTH, INAUGURATION_YEAR)
+                    + ". Só é possível gerar relatórios a partir dessa data.");
+            return;
+        }
+
+        OperationResult<FinancialReport> result = fitManager.generateMonthlyReport(month, year);
+        if (!result.isSuccess()) {
+            ui.showError(result.getMessage());
+            return;
+        }
+
+        FinancialReport report = result.getData();
+        ui.showScrollableMessage(report.format());
+
+        String exportar = ui.getInput(
+                "Deseja exportar o relatório para um arquivo CSV?\n" +
+                        "Digite 'S' para confirmar ou qualquer outra tecla para pular:");
+        if (exportar != null && exportar.trim().equalsIgnoreCase("S")) {
+            exportReport(report);
+        }
+    }
+
+    /**
+     * Exporta o relatório para {@code data/reports/relatorio_financeiro_<mes>_<ano>.csv}.
+     * Falhas de escrita são exibidas ao usuário sem encerrar o programa.
+     */
+    private void exportReport(FinancialReport report) {
+        String fileName = String.format("relatorio_financeiro_%02d_%d.csv",
+                report.getMonth(), report.getYear());
+        Path dir = Paths.get("data", "reports");
+        Path path = dir.resolve(fileName);
+        try {
+            Files.createDirectories(dir);
+            Files.writeString(path, report.toCsv());
+            ui.showMessage("✅ Relatório exportado para: " + path.toAbsolutePath());
+        } catch (IOException e) {
+            ui.showError("Falha ao exportar o relatório: " + e.getMessage());
         }
     }
 }

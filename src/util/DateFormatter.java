@@ -24,13 +24,10 @@ public final class DateFormatter {
     public static final String DATE_TIME_PATTERN = DATE_PATTERN + " " + TIME_PATTERN;
 
     public static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern(DATE_PATTERN, new Locale("pt", "BR"));
-
-    public static final DateTimeFormatter TIME_FORMATTER =
-            DateTimeFormatter.ofPattern(TIME_PATTERN, new Locale("pt", "BR"));
+            DateTimeFormatter.ofPattern(DATE_PATTERN, Locale.of("pt", "BR"));
 
     public static final DateTimeFormatter DATE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern(DATE_TIME_PATTERN, new Locale("pt", "BR"));
+            DateTimeFormatter.ofPattern(DATE_TIME_PATTERN, Locale.of("pt", "BR"));
 
     private DateFormatter() {
         // Classe utilitária
@@ -56,5 +53,15 @@ public final class DateFormatter {
      */
     public static LocalDate parseDate(String value) {
         return LocalDate.parse(value.trim(), DATE_FORMATTER);
+    }
+
+    /**
+     * Converte uma string no padrão "dd/MM/yyyy HH:mm:ss" para {@link LocalDateTime}.
+     * Utilizado pela camada de persistência ao reconstruir pagamentos a partir
+     * de arquivo.
+     * Lança {@link java.time.format.DateTimeParseException} em entradas inválidas.
+     */
+    public static LocalDateTime parseDateTime(String value) {
+        return LocalDateTime.parse(value.trim(), DATE_TIME_FORMATTER);
     }
 }
