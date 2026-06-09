@@ -110,6 +110,7 @@ FitManager/
 │   │       ├── JOptionPaneUI.java          # Implementação gráfica (JOptionPane)
 │   │       └── TerminalUI.java             # Implementação via terminal
 │   └── util/
+│       ├── CollectionUtils.java            # Método genérico filter(ArrayList<T>, Predicate<T>) reutilizável
 │       ├── CurrencyFormatter.java          # Formatação de valores em BRL (R$ 1.234,56)
 │       ├── DateFormatter.java              # Formatação de datas/horas no padrão BR (dd/MM/yyyy)
 │       └── UserInputParser.java            # Interface funcional genérica de parsing — UserInputParser<T>
@@ -178,6 +179,7 @@ Comportamento:
 - 📊 **Relatórios** — 13 opções: listagens, filtros polimórficos (ativas, canceladas, vencidas, com saldo pendente, por tipo de plano), consultas individuais, estatísticas gerais e o **relatório financeiro mensal**
 - 💰 **Relatório financeiro mensal** — receita total, receita por tipo de plano e por forma de pagamento, total de taxas de processamento, matrículas iniciadas/canceladas e ranking de planos mais contratados; com exportação opcional para CSV em `data/reports/`
 - 🛡️ **Validação robusta de entradas** — todo campo numérico, decimal e de data é protegido; entradas inválidas exibem o formato esperado e pedem nova tentativa, sem nunca encerrar o programa
+- 🔎 **Busca genérica por predicado** — método utilitário `CollectionUtils.filter(ArrayList<T>, Predicate<T>)` reaproveitado em `StudentService` (alunos ativos) e `EnrollmentService` (histórico por aluno e filtros polimórficos), eliminando a duplicação do laço de filtragem
 - 🖥️ **Interface dupla** — escolha entre JOptionPane (gráfica) ou Terminal (linha de comando) na inicialização, com comportamento idêntico em ambas
 
 > ℹ️ **Regra de negócio:** a FitManager foi inaugurada em **01/03/2026** — o relatório financeiro só é gerado para períodos a partir dessa data (a partir de 2027, todos os meses ficam disponíveis).
@@ -194,10 +196,10 @@ Comportamento:
 - **Polimorfismo**: cálculo de preços, taxas e filtros sem condicionais — cada subclasse define seu próprio comportamento
 - **Encapsulamento**: atributos privados, acesso via getters/setters, validações internas nos serviços
 - **Enums**: `PlanType`, `PaymentType` e `EnrollmentStatus` com labels em português
-- **Generics**: `OperationResult<T>` parametrizado (sem casts nos menus); classe genérica `Repository<T>`; interface funcional `UserInputParser<T>`; coleções tipadas em todo o código (`ArrayList<Student>`, `Map<String, Double>`)
+- **Generics**: `OperationResult<T>` parametrizado (sem casts nos menus); classe genérica `Repository<T>`; método genérico `CollectionUtils.filter(ArrayList<T>, Predicate<T>)`; interface funcional `UserInputParser<T>`; coleções tipadas em todo o código (`ArrayList<Student>`, `Map<String, Double>`)
 - **Tratamento de exceções**: hierarquia personalizada em categorias — validação e regra de negócio (não verificadas, sob `FitManagerException`) e persistência (verificada, sob `PersistenceException`), com captura por camada
 - **Persistência em arquivos**: gravação/leitura em CSV com preservação dos tipos polimórficos e do `nextCode`, usando *try-with-resources*
-- **Coleções genéricas**: agregações do relatório financeiro em `Map<String, Double>` agrupadas por `getTypeName()`, sem `instanceof`
+- **Coleções genéricas**: agregações do relatório financeiro em `Map<String, Double>` agrupadas por `getTypeName()`, sem `instanceof`; filtragem reutilizável com `Predicate<T>` e expressões lambda/method references
 
 ---
 
@@ -209,7 +211,7 @@ application/   Orquestração (FitManager), serviços de domínio e o relatório
 domain/        Entidades, hierarquias de Plan/Payment, enums e filtros.
 persistence/   Repositórios genéricos — leitura e escrita em arquivo.
 exceptions/    Hierarquia de exceções personalizadas.
-util/          Formatação (moeda, data) e parsing genérico de entradas.
+util/          Formatação (moeda, data), parsing genérico de entradas e filtragem genérica de coleções.
 ```
 
 Regra de dependência: o domínio não conhece persistência; os menus capturam exceções de domínio (validação/negócio), enquanto as exceções de persistência são tratadas na inicialização/encerramento pelo `FitManagerApp`/`FitManager`.
