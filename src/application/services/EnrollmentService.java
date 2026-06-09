@@ -14,6 +14,7 @@ import exceptions.RequiredFieldException;
 import persistence.EnrollmentRepository;
 import persistence.PlanRepository;
 import persistence.StudentRepository;
+import util.CollectionUtils;
 import util.CurrencyFormatter;
 
 import java.time.LocalDate;
@@ -269,12 +270,10 @@ public class EnrollmentService {
             throw new RequiredFieldException("CPF");
         }
 
-        ArrayList<Enrollment> studentEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : repository.listAll()) {
-            if (enrollment.getStudentCpf().equals(cpf)) {
-                studentEnrollments.add(enrollment);
-            }
-        }
+        ArrayList<Enrollment> studentEnrollments = CollectionUtils.filter(
+                repository.listAll(),
+                enrollment -> enrollment.getStudentCpf().equals(cpf)
+        );
 
         if (studentEnrollments.isEmpty()) {
             return new OperationResult<>(false, "Nenhuma matrícula encontrada para este aluno.");
@@ -355,12 +354,10 @@ public class EnrollmentService {
      * Lista matrículas que atendem ao critério de um filtro polimórfico.
      */
     public OperationResult<ArrayList<Enrollment>> listByFilter(EnrollmentFilter filter) {
-        ArrayList<Enrollment> filtered = new ArrayList<>();
-        for (Enrollment enrollment : repository.listAll()) {
-            if (filter.matches(enrollment)) {
-                filtered.add(enrollment);
-            }
-        }
+        ArrayList<Enrollment> filtered = CollectionUtils.filter(
+                repository.listAll(),
+                filter::matches
+        );
 
         if (filtered.isEmpty()) {
             return new OperationResult<>(false,
@@ -395,46 +392,6 @@ public class EnrollmentService {
         return new OperationResult<>(true,
                 repository.count() + " matrícula(s) encontrada(s).",
                 repository.listAll());
-    }
-
-    /**
-     * Lista apenas as matrículas ativas.
-     */
-    public OperationResult<ArrayList<Enrollment>> listActive() {
-        ArrayList<Enrollment> activeEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : repository.listAll()) {
-            if (enrollment.getStatus() == EnrollmentStatus.ACTIVE) {
-                activeEnrollments.add(enrollment);
-            }
-        }
-
-        if (activeEnrollments.isEmpty()) {
-            return new OperationResult<>(false, "Nenhuma matrícula ativa encontrada.");
-        }
-
-        return new OperationResult<>(true,
-                activeEnrollments.size() + " matrícula(s) ativa(s) encontrada(s).",
-                activeEnrollments);
-    }
-
-    /**
-     * Lista apenas as matrículas com saldo pendente.
-     */
-    public OperationResult<ArrayList<Enrollment>> listWithPendingBalance() {
-        ArrayList<Enrollment> pendingEnrollments = new ArrayList<>();
-        for (Enrollment enrollment : repository.listAll()) {
-            if (enrollment.calculateBalance() > 0) {
-                pendingEnrollments.add(enrollment);
-            }
-        }
-
-        if (pendingEnrollments.isEmpty()) {
-            return new OperationResult<>(false, "Nenhuma matrícula com saldo pendente.");
-        }
-
-        return new OperationResult<>(true,
-                pendingEnrollments.size() + " matrícula(s) com saldo pendente encontrada(s).",
-                pendingEnrollments);
     }
 
     /**

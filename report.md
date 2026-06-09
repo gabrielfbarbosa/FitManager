@@ -745,6 +745,25 @@ Os pagamentos são registrados com `LocalDateTime.now()` em vez de `LocalDate.no
 
 A classe `mocks.DataMock` popula o sistema com cenários representativos controlados pela flag `DEV_MODE` em `FitManagerApp`.
 
+### 6.6 Método genérico de busca com predicado
+
+**O que foi implementado:** a classe utilitária `CollectionUtils`, no pacote `util`, define o método estático genérico `filter(ArrayList<T> source, Predicate<T> criterion)`. O método recebe uma coleção tipada e um critério de seleção, percorre a lista uma única vez e devolve um novo `ArrayList<T>` contendo apenas os elementos aprovados pelo predicado.
+
+**Classes criadas:** `CollectionUtils`, em `util`.
+
+**Classes modificadas:** `StudentService` e `EnrollmentService`. Os métodos de listagem que antes repetiam loops de filtragem passaram a delegar a iteração para `CollectionUtils.filter`, mantendo nos serviços apenas o critério de negócio.
+
+**Conceitos aplicados:** generics (`<T>`), coleção genérica (`ArrayList<T>`) e interface funcional (`Predicate<T>`). Quando o critério já existe como método no contexto específico, ele é passado por referência de método, por exemplo `Student::isActive` e `filter::matches`.
+
+**Decisão arquitetural:** o método foi colocado em `util` porque a estrutura da filtragem não pertence especificamente a alunos, planos ou matrículas. A regra de negócio continua nos serviços: `StudentService` decide que a listagem deve retornar alunos ativos; `EnrollmentService` decide critérios como matrícula ativa, saldo pendente ou histórico por CPF. O menu continua apenas exibindo resultados e não acessa coleções diretamente.
+
+**Quatro perguntas:**
+
+1. *A funcionalidade agrega valor real ao domínio?* Sim — sistemas de gestão de academia dependem de consultas frequentes por critérios, como alunos ativos, matrículas ativas, histórico de um aluno e matrículas com saldo pendente.
+2. *Aplica conceitos centrais desta etapa?* Sim — o método é genuinamente genérico, pois funciona com qualquer tipo `T`; além disso, usa `Predicate<T>` para representar critérios de seleção sem duplicar a lógica de iteração.
+3. *Está bem posicionada na arquitetura?* Sim — a operação transversal fica em `util`, enquanto os serviços preservam a responsabilidade de definir os critérios de negócio. Nenhuma regra foi movida para os menus.
+4. *Há impacto em classes existentes?* Baixo — foram alterados apenas métodos de listagem em `StudentService` e `EnrollmentService`, sem mudar assinaturas públicas, mensagens de retorno ou regras de negócio.
+
 ---
 
 ## 7. Dificuldades e aprendizados da Etapa 2
