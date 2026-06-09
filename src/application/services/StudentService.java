@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 
+import util.CollectionUtils;
 import util.DateFormatter;
 
 /**
@@ -183,12 +184,10 @@ public class StudentService {
      * @return OperationResult com ArrayList&lt;Student&gt; em data
      */
     public OperationResult<ArrayList<Student>> listAll() {
-        ArrayList<Student> activeStudents = new ArrayList<>();
-        for (Student student : repository.listAll()) {
-            if (student.isActive()) {
-                activeStudents.add(student);
-            }
-        }
+        ArrayList<Student> activeStudents = CollectionUtils.filter(
+                repository.listAll(),
+                Student::isActive
+        );
 
         if (activeStudents.isEmpty()) {
             return new OperationResult<>(false, "Nenhum aluno cadastrado no sistema.");
