@@ -186,7 +186,7 @@ public class StudentService {
     public OperationResult<ArrayList<Student>> listAll() {
         ArrayList<Student> activeStudents = CollectionUtils.filter(
                 repository.listAll(),
-                student -> student.isActive()
+                Student::isActive
         );
 
         if (activeStudents.isEmpty()) {

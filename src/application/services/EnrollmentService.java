@@ -356,7 +356,7 @@ public class EnrollmentService {
     public OperationResult<ArrayList<Enrollment>> listByFilter(EnrollmentFilter filter) {
         ArrayList<Enrollment> filtered = CollectionUtils.filter(
                 repository.listAll(),
-                enrollment -> filter.matches(enrollment)
+                filter::matches
         );
 
         if (filtered.isEmpty()) {
@@ -392,42 +392,6 @@ public class EnrollmentService {
         return new OperationResult<>(true,
                 repository.count() + " matrícula(s) encontrada(s).",
                 repository.listAll());
-    }
-
-    /**
-     * Lista apenas as matrículas ativas.
-     */
-    public OperationResult<ArrayList<Enrollment>> listActive() {
-        ArrayList<Enrollment> activeEnrollments = CollectionUtils.filter(
-                repository.listAll(),
-                enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVE
-        );
-
-        if (activeEnrollments.isEmpty()) {
-            return new OperationResult<>(false, "Nenhuma matrícula ativa encontrada.");
-        }
-
-        return new OperationResult<>(true,
-                activeEnrollments.size() + " matrícula(s) ativa(s) encontrada(s).",
-                activeEnrollments);
-    }
-
-    /**
-     * Lista apenas as matrículas com saldo pendente.
-     */
-    public OperationResult<ArrayList<Enrollment>> listWithPendingBalance() {
-        ArrayList<Enrollment> pendingEnrollments = CollectionUtils.filter(
-                repository.listAll(),
-                enrollment -> enrollment.calculateBalance() > 0
-        );
-
-        if (pendingEnrollments.isEmpty()) {
-            return new OperationResult<>(false, "Nenhuma matrícula com saldo pendente.");
-        }
-
-        return new OperationResult<>(true,
-                pendingEnrollments.size() + " matrícula(s) com saldo pendente encontrada(s).",
-                pendingEnrollments);
     }
 
     /**

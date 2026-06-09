@@ -753,7 +753,7 @@ A classe `mocks.DataMock` popula o sistema com cenários representativos control
 
 **Classes modificadas:** `StudentService` e `EnrollmentService`. Os métodos de listagem que antes repetiam loops de filtragem passaram a delegar a iteração para `CollectionUtils.filter`, mantendo nos serviços apenas o critério de negócio.
 
-**Conceitos aplicados:** generics (`<T>`), coleção genérica (`ArrayList<T>`) e interface funcional (`Predicate<T>`). Os critérios foram expressos com lambdas simples, por exemplo `student -> student.isActive()`, que implementa um `Predicate<Student>` e seleciona apenas alunos ativos.
+**Conceitos aplicados:** generics (`<T>`), coleção genérica (`ArrayList<T>`) e interface funcional (`Predicate<T>`). Quando o critério já existe como método no contexto específico, ele é passado por referência de método, por exemplo `Student::isActive` e `filter::matches`.
 
 **Decisão arquitetural:** o método foi colocado em `util` porque a estrutura da filtragem não pertence especificamente a alunos, planos ou matrículas. A regra de negócio continua nos serviços: `StudentService` decide que a listagem deve retornar alunos ativos; `EnrollmentService` decide critérios como matrícula ativa, saldo pendente ou histórico por CPF. O menu continua apenas exibindo resultados e não acessa coleções diretamente.
 
